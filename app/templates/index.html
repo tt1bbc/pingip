@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ping 网段</title>
+    <style>
+        body {
+            font-family: '微软雅黑', Arial, sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            box-sizing: border-box;
+        }
+
+        .container {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            max-width: 600px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        h1 {
+            font-size: 24px;
+            text-align: center;
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .combo-box {
+            width: 100%;
+            margin-bottom: 20px;
+        }
+
+        .combo-box select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+
+        button {
+            width: 100%;
+            padding: 10px;
+            background-color: #007bff;
+            color: white;
+            font-size: 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .results-container {
+            display: none; /* 初始隐藏结果展示部分 */
+            margin-top: 20px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .results-column {
+            width: 48%;
+            overflow-y: auto; /* 允许结果列表滚动 */
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            background-color: #f9f9f9;
+            max-height: 60vh; /* 设置最大高度 */
+        }
+
+        h3 {
+            font-size: 20px;
+            color: #333;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        ul.results {
+            list-style-type: none;
+            padding-left: 0;
+            margin: 0;
+        }
+
+        li.result-item {
+            padding: 8px 10px;
+            border: 1px solid #ddd;
+            margin-bottom: 5px;
+            border-radius: 4px;
+            background-color: #f9f9f9;
+        }
+
+        li.success {
+            border-color: #28a745;
+            background-color: #d4edda;
+        }
+
+        li.fail {
+            border-color: #dc3545;
+            background-color: #f8d7da;
+        }
+    </style>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Ping 网段</h1>
+        <div class="combo-box">
+            <select id="dropdown">
+                {% for range in comrange %}
+                <option value="{{ range }}">{{ range }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <button id="ping-btn">Ping</button>
+
+        <div class="results-container" id="results-container">
+            <div class="results-column">
+                <h3>成功的结果</h3>
+                <ul id="success-results" class="results"></ul>
+            </div>
+
+            <div class="results-column">
+                <h3>失败的结果</h3>
+                <ul id="fail-results" class="results"></ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            // 隐藏结果区域
+            $('#results-container').hide();
+
+            // 点击 Ping 按钮发送请求
+            $('#ping-btn').click(function() {
+                const ipRange = $('#dropdown').val();
+
+                // 隐藏并清空旧的结果
+                $('#results-container').hide();
+                $('#success-results').empty();
+                $('#fail-results').empty();
+
+                // 设置光标为 loading 状态
+                $('body').css('cursor', 'wait');
+
+                // 发送 ping 请求
+                $.post('/ping', { ip_range: ipRange }, function(data) {
+                    if (data.success) {
+                        for (const [host, delay] of Object.entries(data.success)) {
+                            $('#success-results').append(`<li class="result-item success">${host}: ${delay} ms</li>`);
+                        }
+                    }
+
+                    if (data.fail) {
+                        for (const [host, message] of Object.entries(data.fail)) {
+                            $('#fail-results').append(`<li class="result-item fail">${host}: ${message}</li>`);
+                        }
+                    }
+
+                    // 显示结果部分
+                    $('#results-container').show();
+
+                    // 重置光标为默认状态
+                    $('body').css('cursor', 'default');
+                }).fail(function() {
+                    alert('Ping 请求失败，请检查网络或输入的网段。');
+                    // 重置光标为默认状态
+                    $('body').css('cursor', 'default');
+                });
+            });
+        });
+    </script>
+</body>
+</html>
