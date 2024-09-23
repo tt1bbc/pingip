@@ -20,7 +20,7 @@ async def pingip(host):
 @main.route('/')
 def index():
     """主页"""
-    return render_template('index.html', comrange=Config.COMRANGE)
+    return render_template('index.html', comrange=sorted(Config.COMRANGE, reverse=True))
 
 @main.route('/ping', methods=['POST'])
 async def ping():
