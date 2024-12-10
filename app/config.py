@@ -29,3 +29,6 @@ class Config:
                 "10.106.22.0/24-测试物理机管理网段",
                 "10.1.128.0/24-老楼网段",
                 "10.1.132.0/24-老楼网段"]
+    JENKINS_URL = 'https://mrojenkins.loongair.cn'
+    JENKINS_USER = 'linhaoli'
+    JENKINS_API_TOKEN = '11c91f068a495c809f4afeed3cbcef947f'

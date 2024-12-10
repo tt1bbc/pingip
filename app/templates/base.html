@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}My Flask App{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    {% block head %}
+    {% endblock %}
+</head>
+<body>
+
+<header>
+    <nav class="navbar">
+        <div class="logo">
+            <a href="/">My Flask App</a>
+        </div>
+        <div class="nav-links-container">
+            <ul class="nav-links">
+                <li><a href="/">首页</a></li>
+                <li><a href="/pinglist">Ping 网段</a></li>
+                <li><a href="/jenkins">Jenkins</a></li>
+                <li><a href="/about">关于</a></li>
+            </ul>
+        </div>
+    </nav>    
+</header>
+
+<main class="content">
+    <div class="container">
+        {% block content %}
+        <!-- 页面内容将被插入这里 -->
+        {% endblock %}
+    </div>
+</main>
+
+<footer class="footer">
+    <p>&copy; 2024 My Flask App. All rights reserved.</p>
+</footer>
+
+</body>
+</html>

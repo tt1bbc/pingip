@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+
+{% block title %}Jenkins{% endblock %}
+{% block head %}
+<style>
+    .headcontainer {
+        display: flex;
+        flex-direction: column; /* 垂直排列子元素 */
+        align-items: center; /* 水平居中 */
+        padding: 10px;
+        width: 60%; /* 确保容器在小屏幕下不超出视口 */
+        margin: 20px auto; /* 添加上下边距并居中 */
+    }
+    .btn-container {
+        display: flex;
+        justify-content: space-between; /* 按钮在行内平分空间 */
+        width: 200px; /* 根据需要调整按钮容器的宽度 */
+    }
+    .container {
+        display: flex;
+        flex-wrap: wrap;
+        padding: 10px;
+        width: 100%; /* 确保容器在小屏幕下不超出视口 */
+        margin: 10px auto; /* 添加上下边距并居中 */
+        justify-content: center; /* 水平居中 */
+        align-items: center; /* 垂直居中 */
+        min-height: 200px; /* 设置最小高度，以便能看到居中效果 */
+    }
+    .item {
+        margin: 2px 2px;
+        padding: 5px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        cursor: pointer; /* 鼠标悬停时显示手形光标 */
+        transition: background-color 0.3s; /* 添加过渡效果 */
+    }
+    .item.selected {
+        background-color: #4caf50; /* 选中时背景色 */
+        color: white; /* 选中时字体颜色 */
+    }
+    .selected-items {
+        margin-top: 30px; /* 增加上边距以产生间隔 */
+        font-weight: bold;
+        margin-bottom: 20px; /* 增加下边距以产生间隔 */
+    }
+</style>
+{% endblock %}
+{% block content %}
+<div class="headcontainer">
+    <h2>请选择Jenkins Job</h2>
+    <div class="btn-container">
+        <button class="btn" id="clear-btn">Clear</button>
+        <button class="btn" id="build-btn">Build</button>
+    </div>
+    <div id="loadingMessage" style="display: none;">正在加载，请稍候...</div>
+</div>
+
+<!-- 表格显示选中的Job和Parameters -->
+<table id="jobParamTable" border="1" style="width: 60%; margin: 20px auto; border-collapse: collapse;">
+    <thead>
+        <tr>
+            <th style="width: 20%">Job Name</th>
+            <th style="width: 80%">Parameters</th>
+        </tr>
+    </thead>
+    <tbody>
+        <!-- 数据将通过JavaScript插入到这里 -->
+    </tbody>
+</table>
+
+<div class="container" id="jobs">
+    {% for job in jobs %}
+    <div class="item" data-value="{{ job }}">{{ job }}</div>
+    {% endfor %}
+</div>
+
+<script>
+    // 获取所有可点击的项
+    const items = document.querySelectorAll('.item');
+    const clearBtn = document.getElementById('clear-btn');
+    const jobParamTableBody = document.querySelector('#jobParamTable tbody');
+    const buildBtn = document.getElementById('build-btn');
+
+    items.forEach(item => {
+        item.addEventListener('click', () => {
+            // 切换选中状态
+            item.classList.toggle('selected');
+            
+            const jobName = item.dataset.value;
+
+            // 如果选中，添加到表格；如果取消选中，从表格中移除
+            if (item.classList.contains('selected')) {
+                addRowToTable(jobName);
+            } else {
+                removeRowFromTable(jobName);
+            }
+        });
+    });
+
+    clearBtn.addEventListener('click', () => {
+    // 移除所有选中状态
+        document.querySelectorAll('.item').forEach(item => item.classList.remove('selected'));
+        jobParamTableBody.innerHTML = '';  // 清空表格
+        items.forEach(item => {
+            item.classList.remove('selected');
+        });
+    });
+
+    buildBtn.addEventListener('click', () => {
+    // 获取所有选中的项
+    const selected = Array.from(document.querySelectorAll('.item.selected')).map(el => el.dataset.value);
+
+    if (selected.length === 0) {
+        alert('请先选择一个或多个 Job');
+        return;
+    }
+
+    // 禁用按钮，显示加载状态，并改变背景色
+    buildBtn.disabled = true;
+    buildBtn.style.backgroundColor = '#d3d3d3';
+
+    // 创建一个数组来存储所有的请求
+    const fetchPromises = selected.map(jobName => {
+        return fetch('/jenkins/job-parameters', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ job_name: jobName })
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`错误: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            // 更新表格中的参数
+            updateRowParameters(jobName, data);
+        })
+        .catch(error => {
+            console.error('Error fetching job parameters:', error);
+            // 可以在表格中显示错误信息
+            updateRowParameters(jobName, [{ name: '错误', default: error.message }]);
+        });
+    });
+
+    // 等待所有请求完成
+    Promise.all(fetchPromises)
+        .then(() => {
+            // 所有请求完成后，重新启用按钮，恢复背景颜色
+            buildBtn.disabled = false;
+            buildBtn.style.backgroundColor = ''; // 恢复默认颜色
+        });
+});
+
+    
+// 向表格中添加选中的Job
+function addRowToTable(jobName) {
+    const row = document.createElement('tr');
+    row.setAttribute('id', `row-${jobName}`);
+
+    // 添加Job Name列
+    const jobNameCell = document.createElement('td');
+    jobNameCell.textContent = jobName;
+    row.appendChild(jobNameCell);
+
+    // 添加空白的Parameters列
+    const paramCell = document.createElement('td');
+    paramCell.textContent = '';  // 初始时显示无参数
+    row.appendChild(paramCell);
+
+    // 将行添加到表格中
+    jobParamTableBody.appendChild(row);
+}
+
+    // 从表格中删除取消选中的Job
+    function removeRowFromTable(jobName) {
+        const row = document.getElementById(`row-${jobName}`);
+        if (row) {
+            jobParamTableBody.removeChild(row);
+        }
+    }
+
+// 更新表格中对应Job的参数
+function updateRowParameters(jobName, parameters) {
+    const row = document.getElementById(`row-${jobName}`);
+
+    if (row) {
+        const paramCell = row.querySelector('td:nth-child(2)'); // 获取第二列（Parameters列）
+
+        if (parameters.length > 0) {
+            // 使用换行符拼接参数
+            const paramList = parameters.map(param => `${param.name}: ${param.default}`).join('\n');
+            paramCell.textContent = paramList; // 设置文本内容
+            paramCell.style.whiteSpace = 'pre-wrap'; // 确保换行符有效
+        } else {
+            paramCell.textContent = '无参数'; // 无参数时显示
+        }
+    } else {
+        console.error(`Row for job '${jobName}' not found`);
+    }
+}
+</script>
+{% endblock %}
