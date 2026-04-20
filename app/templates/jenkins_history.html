@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+
+{% block title %}Jenkins 构建记录{% endblock %}
+
+{% block content %}
+<div class="page-shell">
+    <div class="headcontainer">
+        <div class="head-row">
+            <h2>Jenkins 构建记录</h2>
+        </div>
+
+        <div class="refresh-inline">
+            <span class="refresh-label">自动刷新</span>
+            <div class="segmented" id="refresh_interval">
+                <label><input type="radio" name="refresh" value="off" checked><span>不刷新</span></label>
+                <label><input type="radio" name="refresh" value="5"><span>5秒</span></label>
+                <label><input type="radio" name="refresh" value="15"><span>15秒</span></label>
+                <label><input type="radio" name="refresh" value="60"><span>1分钟</span></label>
+                <button class="btn" type="submit" form="history_filter_form">筛选</button>
+            </div> 
+        </div>
+
+        <form id="history_filter_form" class="filter-bar is-table-head" method="get" action="/jenkins/history">
+            <div class="filter-row">
+                <div class="filter-group">
+                    <label for="job_name">Job</label>
+                    <input id="job_name" name="job_name" class="input" value="{{ filters.job_name }}">
+                </div>
+                <div class="filter-group">
+                    <label for="status">状态</label>
+                    <input id="status" name="status" class="input" value="{{ filters.status }}">
+                </div>
+                <div class="filter-group">
+                    <label for="started_from">开始时间</label>
+                    <input id="started_from" name="started_from" class="input" type="datetime-local" value="{{ filters.started_from }}">
+                </div>
+                <div class="filter-group">
+                    <label for="started_to">结束时间</label>
+                    <input id="started_to" name="started_to" class="input" type="datetime-local" value="{{ filters.started_to }}">
+                </div>
+                <div class="break"></div>
+                <div class="filter-group">
+                    <label for="system_name">系统名称</label>
+                    <input id="system_name" name="system_name" class="input" value="{{ filters.system_name }}">
+                </div>
+                <div class="filter-group">
+                    <label for="is_audited">是否审计</label>
+                    <select id="is_audited" name="is_audited" class="input">
+                        <option value="" {% if not filters.is_audited %}selected{% endif %}>全部</option>
+                        <option value="true" {% if filters.is_audited == 'true' %}selected{% endif %}>是</option>
+                        <option value="false" {% if filters.is_audited == 'false' %}selected{% endif %}>否</option>
+                        <option value="unset" {% if filters.is_audited == 'unset' %}selected{% endif %}>为空</option>
+                    </select>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Job</th>
+                <th>构建号</th>
+                <th>状态</th>
+                <th>触发人</th>
+                <th>参数</th>
+                <th>开始时间(CST+8)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in rows %}
+            <tr>
+                <td>{{ row.job_name }}</td>
+                <td>{{ row.build_number }}</td>
+                <td><span class="status-pill status-{{ row.status|lower }}">{{ row.status }}</span></td>
+                <td>{{ row.triggered_by }}</td>
+                <td class="cell-wrap">{{ row.parameters }}</td>
+                <td>{{ row.started_at }}</td>
+            </tr>
+            {% endfor %}
+            {% if rows|length == 0 %}
+            <tr>
+                <td colspan="6" class="empty">暂无记录</td>
+            </tr>
+            {% endif %}
+        </tbody>
+    </table>
+
+    <div class="pagination">
+        <div class="page-info">本页 {{ rows|length }} 条 / 共 {{ total }} 条 / 第 {{ page }} 页</div>
+        <div class="page-actions">
+            {% if prev_url %}
+            <a class="page-link" href="{{ prev_url }}">上一页</a>
+            {% endif %}
+            {% if next_url %}
+            <a class="page-link" href="{{ next_url }}">下一页</a>
+            {% endif %}
+        </div>
+        <div class="page-actions">
+            <label for="per_page">每页</label>
+            <select id="per_page" name="per_page" class="input" form="history_filter_form" onchange="this.form.submit()">
+                <option value="10" {% if per_page == 10 %}selected{% endif %}>10</option>
+                <option value="50" {% if per_page == 50 %}selected{% endif %}>50</option>
+                <option value="100" {% if per_page == 100 %}selected{% endif %}>100</option>
+            </select>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function () {
+        const group = document.getElementById('refresh_interval');
+        const storageKey = 'jenkins_history_refresh_interval';
+        let timerId = null;
+
+        function stopTimer() {
+            if (timerId) {
+                clearInterval(timerId);
+                timerId = null;
+            }
+        }
+
+        function startTimer() {
+            stopTimer();
+            const checked = group.querySelector('input[name="refresh"]:checked');
+            const value = checked ? checked.value : 'off';
+            if (value === 'off') return;
+            const seconds = parseInt(value, 10);
+            if (!Number.isFinite(seconds) || seconds <= 0) return;
+            timerId = setInterval(() => {
+                window.location.reload();
+            }, seconds * 1000);
+        }
+
+        const saved = localStorage.getItem(storageKey);
+        if (saved) {
+            const savedInput = group.querySelector(`input[name="refresh"][value="${saved}"]`);
+            if (savedInput) savedInput.checked = true;
+        }
+        startTimer();
+
+        group.addEventListener('change', () => {
+            const checked = group.querySelector('input[name="refresh"]:checked');
+            const value = checked ? checked.value : 'off';
+            localStorage.setItem(storageKey, value);
+            startTimer();
+        });
+    })();
+</script>
+{% endblock %}

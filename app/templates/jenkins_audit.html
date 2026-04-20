@@ -1,0 +1,217 @@
+{% extends "base.html" %}
+
+{% block title %}Jenkins 审计{% endblock %}
+
+{% block content %}
+<div class="page-shell">
+    <div class="headcontainer">
+        <div class="head-row">
+            <h2>Jenkins 审计</h2>
+        </div>
+        <div class="filter-bar is-table-head">
+            <div class="filter-row">
+                <div class="filter-group">
+                    <label for="job_filter">Job</label>
+                    <input id="job_filter" class="input" placeholder="输入 Job 名称过滤">
+                </div>
+                <div class="filter-group">
+                    <label for="system_filter">系统名称</label>
+                    <input id="system_filter" class="input" placeholder="输入系统名称过滤">
+                </div>
+                <div class="filter-group">
+                    <label for="audit_filter">是否审计</label>
+                    <select id="audit_filter" class="input">
+                        <option value="">全部</option>
+                        <option value="true">是</option>
+                        <option value="false">否</option>
+                        <option value="unset">未设置</option>
+                    </select>
+                </div>
+                <div class="filter-group actions inline">
+                    <button class="btn" type="button" id="reset_filter">清除</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <table id="auditTable">
+        <thead>
+            <tr>
+                <th style="width: 34%">Job</th>
+                <th style="width: 14%">审计</th>
+                <th style="width: 32%">系统名称</th>
+                <th style="width: 10%">操作</th>
+                <th style="width: 10%">状态</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for job in jobs %}
+            <tr data-name="{{ job.name }}" data-audited="{{ '' if job.is_audited is none else job.is_audited }}">
+                <td class="job-name">{{ job.name }}</td>
+                <td>
+                    <select class="input audit-select">
+                        <option value="" {% if job.is_audited is none %}selected{% endif %}>未设置</option>
+                        <option value="true" {% if job.is_audited %}selected{% endif %}>是</option>
+                        <option value="false" {% if job.is_audited is not none and not job.is_audited %}selected{% endif %}>否</option>
+                    </select>
+                </td>
+                <td>
+                    <input class="input system-input" value="{{ job.system_name or '' }}" placeholder="系统名称">
+                </td>
+                <td>
+                    <button class="btn btn-secondary save-btn" type="button">保存</button>
+                </td>
+                <td class="save-status"></td>
+            </tr>
+            {% endfor %}
+            {% if jobs|length == 0 %}
+            <tr>
+                <td colspan="5" class="empty">暂无 Job</td>
+            </tr>
+            {% endif %}
+        </tbody>
+    </table>
+
+    <div class="pagination" id="audit_pagination">
+        <div class="page-info" id="audit_page_info"></div>
+        <div class="page-actions">
+            <button class="page-link" type="button" id="audit_prev">上一页</button>
+            <button class="page-link" type="button" id="audit_next">下一页</button>
+        </div>
+        <div class="page-actions">
+            <label for="audit_page_size">每页</label>
+            <select id="audit_page_size" class="input">
+                <option value="10">10</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+            </select>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function () {
+        const filterInput = document.getElementById('job_filter');
+        const systemFilter = document.getElementById('system_filter');
+        const auditFilter = document.getElementById('audit_filter');
+        const resetBtn = document.getElementById('reset_filter');
+        const rows = Array.from(document.querySelectorAll('#auditTable tbody tr'));
+        const pageInfo = document.getElementById('audit_page_info');
+        const prevBtn = document.getElementById('audit_prev');
+        const nextBtn = document.getElementById('audit_next');
+        const pageSizeSelect = document.getElementById('audit_page_size');
+        let currentPage = 1;
+        let pageSize = parseInt(pageSizeSelect.value, 10) || 10;
+
+        function rowMatches(row) {
+            const name = (row.querySelector('.job-name')?.textContent || '').toLowerCase();
+            const query = (filterInput.value || '').trim().toLowerCase();
+            const systemValue = (row.querySelector('.system-input')?.value || '').toLowerCase();
+            const systemQuery = (systemFilter.value || '').trim().toLowerCase();
+            const auditValue = auditFilter.value;
+            const rowAudit = row.dataset.audited;
+
+            const nameOk = !query || name.includes(query);
+            const systemOk = !systemQuery || systemValue.includes(systemQuery);
+            let auditOk = true;
+            if (auditValue === 'true') auditOk = rowAudit === 'True' || rowAudit === 'true';
+            if (auditValue === 'false') auditOk = rowAudit === 'False' || rowAudit === 'false';
+            if (auditValue === 'unset') auditOk = rowAudit === '';
+            return nameOk && systemOk && auditOk;
+        }
+
+        function applyFilter() {
+            currentPage = 1;
+            renderPage();
+        }
+
+        function renderPage() {
+            const visibleRows = rows.filter(row => rowMatches(row));
+            const total = visibleRows.length;
+            const totalPages = Math.max(Math.ceil(total / pageSize), 1);
+            if (currentPage > totalPages) currentPage = totalPages;
+            const start = (currentPage - 1) * pageSize;
+            const end = start + pageSize;
+
+            rows.forEach(row => {
+                row.style.display = 'none';
+            });
+            const pageRows = visibleRows.slice(start, end);
+            pageRows.forEach(row => {
+                row.style.display = '';
+            });
+
+            pageInfo.textContent = `本页 ${pageRows.length} 条 / 共 ${total} 条 / 第 ${currentPage} 页`;
+            prevBtn.disabled = currentPage <= 1;
+            nextBtn.disabled = currentPage >= totalPages;
+        }
+
+        filterInput.addEventListener('input', applyFilter);
+        systemFilter.addEventListener('input', applyFilter);
+        auditFilter.addEventListener('change', applyFilter);
+        resetBtn.addEventListener('click', () => {
+            filterInput.value = '';
+            systemFilter.value = '';
+            auditFilter.value = '';
+            applyFilter();
+        });
+
+        pageSizeSelect.addEventListener('change', () => {
+            const nextSize = parseInt(pageSizeSelect.value, 10);
+            pageSize = Number.isFinite(nextSize) && nextSize > 0 ? nextSize : 10;
+            currentPage = 1;
+            renderPage();
+        });
+
+        prevBtn.addEventListener('click', () => {
+            if (currentPage > 1) {
+                currentPage -= 1;
+                renderPage();
+            }
+        });
+        nextBtn.addEventListener('click', () => {
+            currentPage += 1;
+            renderPage();
+        });
+
+        document.querySelectorAll('.save-btn').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const row = btn.closest('tr');
+                const jobName = row.dataset.name;
+                const auditSelect = row.querySelector('.audit-select');
+                const systemInput = row.querySelector('.system-input');
+                const statusCell = row.querySelector('.save-status');
+                const auditValue = auditSelect.value;
+                const payload = {
+                    job_name: jobName,
+                    is_audited: auditValue === '' ? null : auditValue === 'true',
+                    system_name: systemInput.value
+                };
+
+                btn.disabled = true;
+                statusCell.textContent = '保存中...';
+
+                try {
+                    const resp = await fetch('/jenkins/audit/update', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    if (!resp.ok) {
+                        const err = await resp.json().catch(() => ({}));
+                        throw new Error(err.error || resp.statusText);
+                    }
+                    row.dataset.audited = payload.is_audited === null ? '' : String(payload.is_audited);
+                    statusCell.textContent = '已保存';
+                } catch (err) {
+                    statusCell.textContent = `失败: ${err.message}`;
+                } finally {
+                    btn.disabled = false;
+                }
+            });
+        });
+
+        renderPage();
+    })();
+</script>
+{% endblock %}

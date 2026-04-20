@@ -4,25 +4,27 @@
 
 {% block content %}
 
-<div class="combo-box">
-    <h2>Ping 网段</h2>
-    <select id="dropdown" class="custom-select">
-        {% for range in comrange %}
-        <option value="{{ range }}">{{ range }}</option>
-        {% endfor %}
-    </select>
-    <button class="btn" id="ping-btn">Ping</button>
-</div>
-
-<div class="results-container" id="results-container" style="display: none;">
-    <div class="results-column success-column">
-        <h3>成功的结果</h3>
-        <ul id="success-results" class="results"></ul>
+<div class="page-shell">
+    <div class="combo-box">
+        <h2>Ping 网段</h2>
+        <select id="dropdown" class="custom-select">
+            {% for range in comrange %}
+            <option value="{{ range }}">{{ range }}</option>
+            {% endfor %}
+        </select>
+        <button class="btn" id="ping-btn">开始 Ping</button>
     </div>
 
-    <div class="results-column fail-column">
-        <h3>失败的结果</h3>
-        <ul id="fail-results" class="results"></ul>
+    <div class="results-container" id="results-container" style="display: none;">
+        <div class="results-column success-column">
+            <h3>成功结果</h3>
+            <ul id="success-results" class="results"></ul>
+        </div>
+
+        <div class="results-column fail-column">
+            <h3>失败结果</h3>
+            <ul id="fail-results" class="results"></ul>
+        </div>
     </div>
 </div>
 
@@ -34,8 +36,8 @@
             document.getElementById('success-results').innerHTML = '';
             document.getElementById('fail-results').innerHTML = '';
             document.body.style.cursor = 'wait';
-    
-            fetch('/ping', {
+
+            fetch('/net/ping', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
@@ -47,7 +49,6 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    // 对成功的IP地址进行自定义排序
                     const sortedSuccessHosts = Object.keys(data.success).sort((a, b) => {
                         const partsA = a.split('.').map(Number);
                         const partsB = b.split('.').map(Number);
@@ -62,9 +63,8 @@
                         document.getElementById('success-results').innerHTML += `<li class="result-item success">${host}: ${delay} ms</li>`;
                     });
                 }
-    
+
                 if (data.fail) {
-                    // 对失败的IP地址进行自定义排序
                     const sortedFailHosts = Object.keys(data.fail).sort((a, b) => {
                         const partsA = a.split('.').map(Number);
                         const partsB = b.split('.').map(Number);
@@ -79,7 +79,7 @@
                         document.getElementById('fail-results').innerHTML += `<li class="result-item fail">${host}: ${message}</li>`;
                     });
                 }
-    
+
                 document.getElementById('results-container').style.display = 'flex';
                 document.body.style.cursor = 'default';
             })
