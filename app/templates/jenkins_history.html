@@ -3,47 +3,287 @@
 {% block title %}Jenkins 构建记录{% endblock %}
 
 {% block content %}
-<div class="page-shell">
-    <div class="headcontainer">
-        <div class="head-row">
-            <h2>Jenkins 构建记录</h2>
+<style>
+    .history-shell {
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+    }
+
+    .history-panel {
+        width: 100%;
+        max-width: 1080px;
+        margin: 0 auto;
+        padding: 18px;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: linear-gradient(180deg, #fffdfa 0%, #ffffff 100%);
+        box-shadow: var(--shadow);
+    }
+
+    .history-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 16px;
+        margin-bottom: 14px;
+    }
+
+    .history-title {
+        margin: 0;
+        width: auto;
+        text-align: left;
+    }
+
+    .history-desc {
+        margin: 6px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+    }
+
+    .history-meta {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+
+    .history-chip {
+        padding: 8px 12px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: var(--bg-panel);
+        color: var(--muted);
+        font-size: 13px;
+        white-space: nowrap;
+    }
+
+    .history-chip strong {
+        color: var(--text);
+        margin-left: 4px;
+    }
+
+    .history-filter {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+    }
+
+    .history-toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .history-refresh {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .history-refresh-note {
+        font-size: 13px;
+        color: var(--muted);
+    }
+
+    .history-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .history-reset {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        height: 36px;
+        padding: 0 12px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--bg-panel);
+        color: var(--text);
+        text-decoration: none;
+        transition: border-color 0.2s ease, color 0.2s ease, background-color 0.2s ease;
+    }
+
+    .history-reset:hover {
+        border-color: var(--brand);
+        color: var(--brand-strong);
+        background: #fff;
+    }
+
+    .history-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px 14px;
+    }
+
+    .history-field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        min-width: 0;
+    }
+
+    .history-field label {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--muted);
+    }
+
+    .history-field .input {
+        background: #fffdfa;
+    }
+
+    .history-field.wide {
+        grid-column: span 2;
+    }
+
+    .history-table-wrap {
+        width: 100%;
+        max-width: 1080px;
+        margin: 0 auto;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: var(--bg-panel);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+    }
+
+    .history-table-wrap table {
+        margin: 0;
+        border: none;
+        border-radius: 0;
+        box-shadow: none;
+    }
+
+    .history-table-wrap .cell-wrap {
+        text-align: left;
+        max-width: 360px;
+    }
+
+    .history-table-wrap tbody td:first-child {
+        font-weight: 600;
+    }
+
+    .history-pagination {
+        padding: 12px 16px 14px;
+    }
+
+    @media (max-width: 900px) {
+        .history-head {
+            flex-direction: column;
+        }
+
+        .history-meta {
+            justify-content: flex-start;
+        }
+
+        .history-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 640px) {
+        .history-panel {
+            padding: 14px;
+        }
+
+        .history-toolbar,
+        .history-refresh,
+        .history-actions {
+            align-items: stretch;
+        }
+
+        .history-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .history-field.wide {
+            grid-column: span 1;
+        }
+
+        .history-actions .input,
+        .history-actions .btn,
+        .history-actions .history-reset {
+            width: 100%;
+        }
+
+        .history-pagination {
+            flex-direction: column;
+            align-items: stretch;
+        }
+    }
+</style>
+
+<div class="page-shell history-shell">
+    <section class="history-panel">
+        <div class="history-head">
+            <div>
+                <h2 class="history-title">Jenkins 构建记录</h2>
+                <p class="history-desc">支持按 Job、状态、触发人、系统名称和开始时间筛选构建历史。</p>
+            </div>
+            <div class="history-meta">
+                <span class="history-chip">总记录<strong>{{ total }}</strong></span>
+                <span class="history-chip">当前页<strong>{{ page }}/{{ total_pages }}</strong></span>
+                <span class="history-chip">本页<strong>{{ rows|length }}</strong></span>
+            </div>
         </div>
 
-        <div class="refresh-inline">
-            <span class="refresh-label">自动刷新</span>
-            <div class="segmented" id="refresh_interval">
-                <label><input type="radio" name="refresh" value="off" checked><span>不刷新</span></label>
-                <label><input type="radio" name="refresh" value="5"><span>5秒</span></label>
-                <label><input type="radio" name="refresh" value="15"><span>15秒</span></label>
-                <label><input type="radio" name="refresh" value="60"><span>1分钟</span></label>
-                <button class="btn" type="submit" form="history_filter_form">筛选</button>
-            </div> 
-        </div>
+        <form id="history_filter_form" class="history-filter" method="get" action="/jenkins/history">
+            <div class="history-toolbar">
+                <div class="history-refresh">
+                    <span class="history-refresh-note">自动刷新</span>
+                    <div class="segmented" id="refresh_interval">
+                        <label><input type="radio" name="refresh" value="off" checked><span>关闭</span></label>
+                        <label><input type="radio" name="refresh" value="5"><span>5秒</span></label>
+                        <label><input type="radio" name="refresh" value="15"><span>15秒</span></label>
+                        <label><input type="radio" name="refresh" value="60"><span>1分钟</span></label>
+                    </div>
+                </div>
 
-        <form id="history_filter_form" class="filter-bar is-table-head" method="get" action="/jenkins/history">
-            <div class="filter-row">
-                <div class="filter-group">
+                <div class="history-actions">
+                    <label for="per_page" class="refresh-label">每页</label>
+                    <select id="per_page" name="per_page" class="input" onchange="this.form.submit()">
+                        <option value="10" {% if per_page == 10 %}selected{% endif %}>10</option>
+                        <option value="50" {% if per_page == 50 %}selected{% endif %}>50</option>
+                        <option value="100" {% if per_page == 100 %}selected{% endif %}>100</option>
+                    </select>
+                    <a class="history-reset" href="/jenkins/history">重置</a>
+                    <button class="btn" type="submit">筛选</button>
+                </div>
+            </div>
+
+            <div class="history-grid">
+                <div class="history-field">
                     <label for="job_name">Job</label>
-                    <input id="job_name" name="job_name" class="input" value="{{ filters.job_name }}">
+                    <input id="job_name" name="job_name" class="input" value="{{ filters.job_name }}" placeholder="输入 Job 名称">
                 </div>
-                <div class="filter-group">
+                <div class="history-field">
                     <label for="status">状态</label>
-                    <input id="status" name="status" class="input" value="{{ filters.status }}">
+                    <input id="status" name="status" class="input" value="{{ filters.status }}" placeholder="SUCCESS / FAILURE">
                 </div>
-                <div class="filter-group">
+                <div class="history-field">
+                    <label for="triggered_by">触发人</label>
+                    <input id="triggered_by" name="triggered_by" class="input" value="{{ filters.triggered_by }}" placeholder="输入触发用户">
+                </div>
+                <div class="history-field">
+                    <label for="system_name">系统名称</label>
+                    <input id="system_name" name="system_name" class="input" value="{{ filters.system_name }}" placeholder="输入系统名称">
+                </div>
+                <div class="history-field wide">
                     <label for="started_from">开始时间</label>
                     <input id="started_from" name="started_from" class="input" type="datetime-local" value="{{ filters.started_from }}">
                 </div>
-                <div class="filter-group">
+                <div class="history-field wide">
                     <label for="started_to">结束时间</label>
                     <input id="started_to" name="started_to" class="input" type="datetime-local" value="{{ filters.started_to }}">
                 </div>
-                <div class="break"></div>
-                <div class="filter-group">
-                    <label for="system_name">系统名称</label>
-                    <input id="system_name" name="system_name" class="input" value="{{ filters.system_name }}">
-                </div>
-                <div class="filter-group">
+                <div class="history-field">
                     <label for="is_audited">是否审计</label>
                     <select id="is_audited" name="is_audited" class="input">
                         <option value="" {% if not filters.is_audited %}selected{% endif %}>全部</option>
@@ -54,63 +294,57 @@
                 </div>
             </div>
         </form>
-    </div>
+    </section>
 
-    <table>
-        <thead>
-            <tr>
-                <th>Job</th>
-                <th>构建号</th>
-                <th>状态</th>
-                <th>触发人</th>
-                <th>参数</th>
-                <th>开始时间(CST+8)</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for row in rows %}
-            <tr>
-                <td>{{ row.job_name }}</td>
-                <td>{{ row.build_number }}</td>
-                <td><span class="status-pill status-{{ row.status|lower }}">{{ row.status }}</span></td>
-                <td>{{ row.triggered_by }}</td>
-                <td class="cell-wrap">{{ row.parameters }}</td>
-                <td>{{ row.started_at }}</td>
-            </tr>
-            {% endfor %}
-            {% if rows|length == 0 %}
-            <tr>
-                <td colspan="6" class="empty">暂无记录</td>
-            </tr>
-            {% endif %}
-        </tbody>
-    </table>
+    <section class="history-table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Job</th>
+                    <th>构建号</th>
+                    <th>状态</th>
+                    <th>触发人</th>
+                    <th>参数</th>
+                    <th>开始时间 (CST+8)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                <tr>
+                    <td>{{ row.job_name }}</td>
+                    <td>{{ row.build_number }}</td>
+                    <td><span class="status-pill status-{{ row.status|lower }}">{{ row.status }}</span></td>
+                    <td>{{ row.triggered_by }}</td>
+                    <td class="cell-wrap">{{ row.parameters }}</td>
+                    <td>{{ row.started_at }}</td>
+                </tr>
+                {% endfor %}
+                {% if rows|length == 0 %}
+                <tr>
+                    <td colspan="6" class="empty">暂无记录</td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
 
-    <div class="pagination">
-        <div class="page-info">本页 {{ rows|length }} 条 / 共 {{ total }} 条 / 第 {{ page }} 页</div>
-        <div class="page-actions">
-            {% if prev_url %}
-            <a class="page-link" href="{{ prev_url }}">上一页</a>
-            {% endif %}
-            {% if next_url %}
-            <a class="page-link" href="{{ next_url }}">下一页</a>
-            {% endif %}
+        <div class="pagination history-pagination">
+            <div class="page-info">本页 {{ rows|length }} 条 / 共 {{ total }} 条 / 第 {{ page }} 页</div>
+            <div class="page-actions">
+                {% if prev_url %}
+                <a class="page-link" href="{{ prev_url }}">上一页</a>
+                {% endif %}
+                {% if next_url %}
+                <a class="page-link" href="{{ next_url }}">下一页</a>
+                {% endif %}
+            </div>
         </div>
-        <div class="page-actions">
-            <label for="per_page">每页</label>
-            <select id="per_page" name="per_page" class="input" form="history_filter_form" onchange="this.form.submit()">
-                <option value="10" {% if per_page == 10 %}selected{% endif %}>10</option>
-                <option value="50" {% if per_page == 50 %}selected{% endif %}>50</option>
-                <option value="100" {% if per_page == 100 %}selected{% endif %}>100</option>
-            </select>
-        </div>
-    </div>
+    </section>
 </div>
 
 <script>
     (function () {
-        const group = document.getElementById('refresh_interval');
-        const storageKey = 'jenkins_history_refresh_interval';
+        const group = document.getElementById("refresh_interval");
+        const storageKey = "jenkins_history_refresh_interval";
         let timerId = null;
 
         function stopTimer() {
@@ -123,8 +357,8 @@
         function startTimer() {
             stopTimer();
             const checked = group.querySelector('input[name="refresh"]:checked');
-            const value = checked ? checked.value : 'off';
-            if (value === 'off') return;
+            const value = checked ? checked.value : "off";
+            if (value === "off") return;
             const seconds = parseInt(value, 10);
             if (!Number.isFinite(seconds) || seconds <= 0) return;
             timerId = setInterval(() => {
@@ -139,9 +373,9 @@
         }
         startTimer();
 
-        group.addEventListener('change', () => {
+        group.addEventListener("change", () => {
             const checked = group.querySelector('input[name="refresh"]:checked');
-            const value = checked ? checked.value : 'off';
+            const value = checked ? checked.value : "off";
             localStorage.setItem(storageKey, value);
             startTimer();
         });

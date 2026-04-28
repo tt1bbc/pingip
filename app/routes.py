@@ -434,6 +434,7 @@ def _to_cst_str(dt):
 def jenkins_history():
     job_name = (request.args.get("job_name") or "").strip()
     status = (request.args.get("status") or "").strip()
+    triggered_by = (request.args.get("triggered_by") or "").strip()
     audited = (request.args.get("is_audited") or "").strip().lower()
     system_name = (request.args.get("system_name") or "").strip()
     started_from = (request.args.get("started_from") or "").strip()
@@ -446,6 +447,8 @@ def jenkins_history():
         query = query.filter(JobBuildHistory.job_name.ilike(f"%{job_name}%"))
     if status:
         query = query.filter(JobBuildHistory.status == status)
+    if triggered_by:
+        query = query.filter(JobBuildHistory.triggered_by.ilike(f"%{triggered_by}%"))
     if system_name:
         query = query.filter(Job.system_name.ilike(f"%{system_name}%"))
     if audited == "true":
@@ -504,6 +507,8 @@ def jenkins_history():
         query_params["job_name"] = job_name
     if "status" not in query_params and status:
         query_params["status"] = status
+    if "triggered_by" not in query_params and triggered_by:
+        query_params["triggered_by"] = triggered_by
     if "system_name" not in query_params and system_name:
         query_params["system_name"] = system_name
     if "is_audited" not in query_params and audited:
@@ -532,6 +537,7 @@ def jenkins_history():
         filters={
             "job_name": job_name,
             "status": status,
+            "triggered_by": triggered_by,
             "system_name": system_name,
             "is_audited": audited,
             "started_from": started_from,
