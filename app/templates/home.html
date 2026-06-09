@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block title %}首页{% endblock %}
+
+{% block content %}
+<div class="page-shell home-shell">
+    <section class="home-hero">
+        <div>
+            <p class="eyebrow">DevOps Console</p>
+            <h1>内网探测与 Jenkins 构建控制台</h1>
+            <p class="home-lead">集中处理网段连通性探测、Jenkins Job 串行构建、构建历史查询和审计信息维护。</p>
+        </div>
+        <div class="home-actions">
+            <a class="btn btn-primary" href="/jenkins/trigger">进入构建</a>
+            <a class="btn btn-secondary" href="/jenkins/history">查看记录</a>
+            <a class="btn btn-secondary" href="/net/pingpage">网段探测</a>
+        </div>
+    </section>
+
+    <section class="home-grid">
+        <a class="feature-tile" href="/net/pingpage">
+            <span class="feature-kicker">Network</span>
+            <strong>网段探测</strong>
+            <span>选择预设 CIDR 网段，异步 ping 网段内主机，并按成功和失败分组展示。</span>
+        </a>
+        <a class="feature-tile" href="/jenkins/trigger">
+            <span class="feature-kicker">Build</span>
+            <strong>Jenkins 构建</strong>
+            <span>按点击顺序选择 Job，提交后进入 Redis 队列，由 RQ Worker 串行执行。</span>
+        </a>
+        <a class="feature-tile" href="/jenkins/history">
+            <span class="feature-kicker">History</span>
+            <strong>构建记录</strong>
+            <span>按 Job、状态、触发人、系统名称、审计状态和开始时间筛选构建历史。</span>
+        </a>
+        <a class="feature-tile" href="/jenkins/audit">
+            <span class="feature-kicker">Audit</span>
+            <strong>Jenkins 审计</strong>
+            <span>维护 Job 是否纳入审计，以及对应的系统名称。</span>
+        </a>
+    </section>
+
+    <section class="doc-panel">
+        <div class="doc-head">
+            <h2>使用与维护指南</h2>
+            <p>本页说明本地启动、后台任务、构建顺序、Redis 队列和常见排查路径。</p>
+        </div>
+
+        <div class="doc-section">
+            <h3>启动应用</h3>
+            <p>建议在项目根目录启动，也就是 <code>C:\Users\black\Documents\mypython\myapp\pingip</code>。</p>
+            <pre><code>pip install -r requirements.txt
+$env:ENABLE_SCHEDULER="false"
+python run.py</code></pre>
+            <p><code>ENABLE_SCHEDULER=false</code> 表示启动 Flask 时不运行 Jenkins 同步定时任务，适合本地开发和手动测试。</p>
+        </div>
+
+        <div class="doc-section">
+            <h3>启动 RQ Worker</h3>
+            <p>Jenkins 构建先写入 Redis，再由 RQ Worker 消费。Windows 环境需要使用 <code>rq.SimpleWorker</code>。</p>
+            <pre><code>cd C:\Users\black\Documents\mypython\myapp\pingip
+rq worker jenkins --url redis://localhost:6379/0 --worker-class rq.SimpleWorker</code></pre>
+            <p>只启动 Flask 时，点击构建只会入队；只有 RQ Worker 正在运行时，才会真正触发 Jenkins 构建。</p>
+        </div>
+
+        <div class="doc-section">
+            <h3>Jenkins 构建规则</h3>
+            <ul>
+                <li>系统按用户点击选择的顺序串行构建 Job。</li>
+                <li>前一个 Job 成功后才会继续执行下一个 Job。</li>
+                <li>如果某个 Job 失败或触发异常，后续未执行 Job 会标记为 <code>CANCELLED</code>。</li>
+                <li>有参数 Job 会调用 Jenkins 的 <code>buildWithParameters</code> 接口。</li>
+                <li>无参数 Job 会优先尝试 <code>build</code>，失败后再尝试 <code>buildWithParameters</code>。</li>
+            </ul>
+        </div>
+
+        <div class="doc-section">
+            <h3>Redis 中常见 RQ 键</h3>
+            <ul>
+                <li><code>rq:queue:jenkins</code>：待执行任务队列。</li>
+                <li><code>rq:job:&lt;job_id&gt;</code>：单个任务的函数、参数、状态和异常信息。</li>
+                <li><code>rq:failed:jenkins</code>：失败任务集合。</li>
+                <li><code>rq:results:&lt;job_id&gt;</code>：任务结果或失败信息缓存。</li>
+                <li><code>rq:worker:&lt;worker_id&gt;</code>：Worker 心跳和运行状态。</li>
+            </ul>
+        </div>
+
+        <div class="doc-section">
+            <h3>排查建议</h3>
+            <ul>
+                <li>页面点击构建但 Jenkins 没有动作：确认 RQ Worker 正在运行，并确认 Redis 队列里有待执行任务。</li>
+                <li>Worker 启动时报 <code>os.fork</code>：Windows 必须添加 <code>--worker-class rq.SimpleWorker</code>。</li>
+                <li>Job 触发失败：查看 Worker 终端中的 <code>Failed to trigger Jenkins job</code> 日志。</li>
+                <li>启动应用时不想访问 Jenkins：设置 <code>ENABLE_SCHEDULER=false</code>。</li>
+                <li>修改任务执行逻辑后：需要重启 RQ Worker，Worker 不会自动加载新代码。</li>
+            </ul>
+        </div>
+
+        <div class="doc-section">
+            <h3>维护注意事项</h3>
+            <ul>
+                <li>Jenkins Token、数据库密码等敏感配置应迁移到环境变量，并定期轮换。</li>
+                <li>生产环境建议为 Jenkins 触发、审计修改、网段探测接口增加登录、权限和 CSRF 保护。</li>
+                <li>网段探测应限制可探测范围和最大主机数量，避免误扫大网段。</li>
+                <li>数据库结构演进建议使用 Alembic 或 Flask-Migrate，不建议长期依赖 <code>db.create_all()</code>。</li>
+            </ul>
+        </div>
+    </section>
+</div>
+{% endblock %}

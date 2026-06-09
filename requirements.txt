@@ -1,0 +1,10 @@
+Flask
+Flask-SQLAlchemy
+APScheduler
+psycopg2-binary
+python-jenkins
+requests
+netaddr
+aioping
+redis
+rq

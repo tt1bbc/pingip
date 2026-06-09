@@ -3,26 +3,47 @@
 {% block title %}Ping 网段{% endblock %}
 
 {% block content %}
-
 <div class="page-shell">
-    <div class="combo-box">
-        <h2>Ping 网段</h2>
-        <select id="dropdown" class="custom-select">
-            {% for range in comrange %}
-            <option value="{{ range }}">{{ range }}</option>
-            {% endfor %}
-        </select>
-        <button class="btn" id="ping-btn">开始 Ping</button>
-    </div>
+    <section class="tool-panel ping-panel">
+        <div class="tool-head">
+            <div>
+                <h2>Ping 网段</h2>
+                <p class="hint">选择预设网段后开始探测，结果会按连通和异常分组展示。</p>
+            </div>
+        </div>
+        <div class="ping-toolbar">
+            <div class="field-inline">
+                <label for="dropdown">目标网段</label>
+                <input type="hidden" id="dropdown" value="{{ comrange[0] if comrange else '' }}">
+                <div class="custom-combobox" data-combobox>
+                    <button class="combo-trigger" type="button" aria-haspopup="listbox" aria-expanded="false">
+                        <span class="combo-value">{{ comrange[0] if comrange else '请选择网段' }}</span>
+                    </button>
+                    <div class="combo-menu" role="listbox">
+                    {% for range in comrange %}
+                        <button class="combo-option" type="button" data-value="{{ range }}" role="option">{{ range }}</button>
+                    {% endfor %}
+                    </div>
+                </div>
+            </div>
+            <button class="btn btn-primary" id="ping-btn">开始 Ping</button>
+        </div>
+    </section>
 
     <div class="results-container" id="results-container" style="display: none;">
         <div class="results-column success-column">
-            <h3>成功结果</h3>
+            <div class="result-head">
+                <h3>成功结果</h3>
+                <span class="result-count" id="success-count">0</span>
+            </div>
             <ul id="success-results" class="results"></ul>
         </div>
 
         <div class="results-column fail-column">
-            <h3>失败结果</h3>
+            <div class="result-head">
+                <h3>失败结果</h3>
+                <span class="result-count" id="fail-count">0</span>
+            </div>
             <ul id="fail-results" class="results"></ul>
         </div>
     </div>
@@ -35,6 +56,8 @@
             document.getElementById('results-container').style.display = 'none';
             document.getElementById('success-results').innerHTML = '';
             document.getElementById('fail-results').innerHTML = '';
+            document.getElementById('success-count').textContent = '0';
+            document.getElementById('fail-count').textContent = '0';
             document.body.style.cursor = 'wait';
 
             fetch('/net/ping', {
@@ -60,8 +83,12 @@
                     });
                     sortedSuccessHosts.forEach(host => {
                         const delay = data.success[host];
-                        document.getElementById('success-results').innerHTML += `<li class="result-item success">${host}: ${delay} ms</li>`;
+                        const item = document.createElement('li');
+                        item.className = 'result-item success';
+                        item.textContent = `${host}: ${delay} ms`;
+                        document.getElementById('success-results').appendChild(item);
                     });
+                    document.getElementById('success-count').textContent = sortedSuccessHosts.length;
                 }
 
                 if (data.fail) {
@@ -76,11 +103,15 @@
                     });
                     sortedFailHosts.forEach(host => {
                         const message = data.fail[host];
-                        document.getElementById('fail-results').innerHTML += `<li class="result-item fail">${host}: ${message}</li>`;
+                        const item = document.createElement('li');
+                        item.className = 'result-item fail';
+                        item.textContent = `${host}: ${message}`;
+                        document.getElementById('fail-results').appendChild(item);
                     });
+                    document.getElementById('fail-count').textContent = sortedFailHosts.length;
                 }
 
-                document.getElementById('results-container').style.display = 'flex';
+                document.getElementById('results-container').style.display = 'grid';
                 document.body.style.cursor = 'default';
             })
             .catch(() => {

@@ -1,10 +1,10 @@
 from datetime import datetime, timezone, timedelta
 import logging
 import jenkins
-import requests
 from urllib.parse import quote
 from sqlalchemy.exc import IntegrityError
 from .config import Config
+from .jenkins_client import jenkins_get
 from .models import db, Job, JobBuildHistory
 
 logger = logging.getLogger(__name__)
@@ -58,11 +58,9 @@ def _fetch_job_builds_since(job_name, since_dt):
         "tree": "builds[number,url,timestamp,duration,result,building,actions[causes[*],parameters[*]]]"
     }
     try:
-        resp = requests.get(
+        resp = jenkins_get(
             job_api,
-            auth=(Config.JENKINS_USER, Config.JENKINS_API_TOKEN),
             params=params,
-            timeout=15,
         )
     except Exception as exc:
         logger.warning("Failed to fetch job builds for %s: %s", job_name, exc)

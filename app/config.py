@@ -88,3 +88,5 @@ class Config:
         "postgresql+psycopg2://devops:Loongair123@localhost:5432/devops",
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+    RQ_QUEUE_NAME = os.getenv("RQ_QUEUE_NAME", "jenkins")

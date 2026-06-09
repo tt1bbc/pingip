@@ -20,12 +20,18 @@
                 </div>
                 <div class="filter-group">
                     <label for="audit_filter">是否审计</label>
-                    <select id="audit_filter" class="input">
-                        <option value="">全部</option>
-                        <option value="true">是</option>
-                        <option value="false">否</option>
-                        <option value="unset">未设置</option>
-                    </select>
+                    <input type="hidden" id="audit_filter" value="">
+                    <div class="custom-combobox" data-combobox>
+                        <button class="combo-trigger" type="button" aria-haspopup="listbox" aria-expanded="false">
+                            <span class="combo-value">全部</span>
+                        </button>
+                        <div class="combo-menu" role="listbox">
+                            <button class="combo-option" type="button" data-value="" role="option">全部</button>
+                            <button class="combo-option" type="button" data-value="true" role="option">是</button>
+                            <button class="combo-option" type="button" data-value="false" role="option">否</button>
+                            <button class="combo-option" type="button" data-value="unset" role="option">未设置</button>
+                        </div>
+                    </div>
                 </div>
                 <div class="filter-group actions inline">
                     <button class="btn" type="button" id="reset_filter">清除</button>
@@ -49,11 +55,17 @@
             <tr data-name="{{ job.name }}" data-audited="{{ '' if job.is_audited is none else job.is_audited }}">
                 <td class="job-name">{{ job.name }}</td>
                 <td>
-                    <select class="input audit-select">
-                        <option value="" {% if job.is_audited is none %}selected{% endif %}>未设置</option>
-                        <option value="true" {% if job.is_audited %}selected{% endif %}>是</option>
-                        <option value="false" {% if job.is_audited is not none and not job.is_audited %}selected{% endif %}>否</option>
-                    </select>
+                    <input type="hidden" class="audit-select" value="{% if job.is_audited is none %}{% elif job.is_audited %}true{% else %}false{% endif %}">
+                    <div class="custom-combobox audit-combo" data-combobox>
+                        <button class="combo-trigger" type="button" aria-haspopup="listbox" aria-expanded="false">
+                            <span class="combo-value">{% if job.is_audited is none %}未设置{% elif job.is_audited %}是{% else %}否{% endif %}</span>
+                        </button>
+                        <div class="combo-menu" role="listbox">
+                            <button class="combo-option" type="button" data-value="" role="option">未设置</button>
+                            <button class="combo-option" type="button" data-value="true" role="option">是</button>
+                            <button class="combo-option" type="button" data-value="false" role="option">否</button>
+                        </div>
+                    </div>
                 </td>
                 <td>
                     <input class="input system-input" value="{{ job.system_name or '' }}" placeholder="系统名称">
@@ -153,6 +165,7 @@
             filterInput.value = '';
             systemFilter.value = '';
             auditFilter.value = '';
+            auditFilter.dispatchEvent(new Event('change', { bubbles: true }));
             applyFilter();
         });
 

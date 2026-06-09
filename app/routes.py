@@ -2,18 +2,15 @@ from flask import Blueprint, render_template, request, jsonify, current_app, url
 import netaddr
 import asyncio
 import aioping
-import jenkins
-import requests
 import logging
-from xml.etree import ElementTree as ET
-from urllib.parse import quote
-import time
 from datetime import datetime, timezone, timedelta
 import json
-import threading
 from .config import Config
+from .jenkins_builds import fetch_job_parameters
 from .models import Job, JobBuildHistory, db
 from .jenkins_sync import sync_jobs
+from .task_queue import get_rq_queue
+from .tasks import run_batch_build_task
 
 main = Blueprint("main", __name__)
 logger = logging.getLogger(__name__)
@@ -31,7 +28,7 @@ async def pingip(host):
 
 @main.route("/")
 def index():
-    return render_template("base.html")
+    return render_template("home.html")
 
 
 @main.route("/net/pingpage")
@@ -76,29 +73,13 @@ def getjenkinsjobs():
     if not jobs:
         sync_jobs()
         jobs = Job.query.order_by(Job.name).all()
-    jobsname = [job.name for job in jobs]
+    hidden_prefixes = ("test", "dev")
+    jobsname = [
+        job.name
+        for job in jobs
+        if not job.name.lower().startswith(hidden_prefixes)
+    ]
     return render_template("jenkins.html", jobs=jobsname)
-
-
-def _fetch_job_parameters(job_name):
-    job_config_url = f"{Config.JENKINS_URL}/job/{quote(job_name)}/config.xml"
-    response = requests.get(job_config_url, auth=(Config.JENKINS_USER, Config.JENKINS_API_TOKEN))
-    parameters = []
-    build_parameters = {}
-    if response.status_code == 200:
-        root = ET.fromstring(response.text)
-        for param_def in root.findall(".//parameterDefinitions/*"):
-            name = param_def.find("name").text if param_def.find("name") is not None else "Unknown"
-            default_value = (
-                param_def.find(".//defaultValue").text
-                if param_def.find(".//defaultValue") is not None
-                else ""
-            )
-            parameters.append({"name": name, "default": default_value})
-            build_parameters[name] = default_value
-    else:
-        logger.warning("Failed to fetch job configuration: %s", response.status_code)
-    return parameters, build_parameters
 
 
 @main.route("/jenkins/get-job-parameters-batch", methods=["POST"])
@@ -110,7 +91,7 @@ def get_job_parameters_batch():
     results = {}
     for job_name in job_names:
         try:
-            parameters, _ = _fetch_job_parameters(job_name)
+            parameters, _ = fetch_job_parameters(job_name)
             results[job_name] = parameters
         except Exception as e:
             results[job_name] = [{"name": "Error", "default": str(e)}]
@@ -164,248 +145,21 @@ def jenkins_audit_update():
     return jsonify({"ok": True, "is_audited": job.is_audited, "system_name": job.system_name})
 
 
-def _serialize_params(params):
-    if params is None:
-        return None
-    try:
-        return dict(params)
-    except Exception:
-        return params
-
-
-def _record_build_start(job_name, build_number, build_parameters, started_at, jenkins_url=None):
-    history = JobBuildHistory(
-        job_name=job_name,
-        build_number=build_number,
-        status="RUNNING",
-        triggered_by=None,
-        parameters=_serialize_params(build_parameters),
-        started_at=started_at,
-        finished_at=None,
-        duration_ms=None,
-        jenkins_url=jenkins_url,
-    )
-    db.session.add(history)
-    db.session.commit()
-    return history
-
-
-def _record_build_finish(history, status, finished_at, duration_ms=None, jenkins_url=None):
-    history.status = status
-    history.finished_at = finished_at
-    history.duration_ms = duration_ms
-    if jenkins_url:
-        history.jenkins_url = jenkins_url
-    db.session.commit()
-
-
-def _extract_triggered_by(build_data):
-    actions = build_data.get("actions") or []
-    for action in actions:
-        causes = action.get("causes")
-        if isinstance(causes, list):
-            for cause in causes:
-                user = cause.get("userName") or cause.get("userId")
-                if user:
-                    return user
-                desc = cause.get("shortDescription")
-                if desc:
-                    return desc
-    return None
-
-
-def _trigger_build_track(job_name, build_parameters, history):
-    start_time = datetime.now(timezone.utc)
-    history.status = "RUNNING"
-    history.parameters = _serialize_params(build_parameters)
-    history.started_at = start_time
-    history.triggered_by = history.triggered_by or Config.JENKINS_USER
-    db.session.commit()
-
-    build_url = f"{Config.JENKINS_URL}/job/{quote(job_name)}/buildWithParameters"
-    bresponse = requests.post(
-        build_url,
-        auth=(Config.JENKINS_USER, Config.JENKINS_API_TOKEN),
-        params=build_parameters,
-        allow_redirects=False,
-    )
-    if bresponse.status_code not in (201, 302):
-        _record_build_finish(
-            history=history,
-            status="FAILURE",
-            finished_at=datetime.now(timezone.utc),
-            duration_ms=None,
-            jenkins_url=None,
-        )
-        return False
-
-    queue_url = bresponse.headers.get("Location")
-    if not queue_url:
-        _record_build_finish(
-            history=history,
-            status="FAILURE",
-            finished_at=datetime.now(timezone.utc),
-            duration_ms=None,
-            jenkins_url=None,
-        )
-        return False
-
-    queue_api = f"{queue_url}api/json"
-    start_poll = time.time()
-    build_number = None
-    build_url_final = None
-
-    while time.time() - start_poll < 600:
-        q = requests.get(queue_api, auth=(Config.JENKINS_USER, Config.JENKINS_API_TOKEN))
-        if q.status_code != 200:
-            _record_build_finish(
-                history=history,
-                status="FAILURE",
-                finished_at=datetime.now(timezone.utc),
-                duration_ms=None,
-                jenkins_url=None,
-            )
-            return False
-        qdata = q.json()
-        if qdata.get("cancelled"):
-            _record_build_finish(
-                history=history,
-                status="FAILURE",
-                finished_at=datetime.now(timezone.utc),
-                duration_ms=None,
-                jenkins_url=None,
-            )
-            return False
-        executable = qdata.get("executable")
-        if executable and executable.get("number") is not None:
-            build_number = executable.get("number")
-            build_url_final = executable.get("url")
-            history.build_number = build_number
-            if build_url_final:
-                history.jenkins_url = build_url_final
-            db.session.commit()
-            break
-        time.sleep(5)
-
-    if build_number is None:
-        _record_build_finish(
-            history=history,
-            status="FAILURE",
-            finished_at=datetime.now(timezone.utc),
-            duration_ms=None,
-            jenkins_url=build_url_final,
-        )
-        return False
-
-    if not build_url_final:
-        build_url_final = f"{Config.JENKINS_URL}/job/{quote(job_name)}/{build_number}/"
-
-    build_api = f"{build_url_final}api/json"
-    while time.time() - start_poll < 600:
-        b = requests.get(build_api, auth=(Config.JENKINS_USER, Config.JENKINS_API_TOKEN))
-        if b.status_code != 200:
-            _record_build_finish(
-                history=history,
-                status="FAILURE",
-                finished_at=datetime.now(timezone.utc),
-                duration_ms=None,
-                jenkins_url=build_url_final,
-            )
-            return False
-        bdata = b.json()
-        if history.triggered_by == Config.JENKINS_USER:
-            triggered_by = _extract_triggered_by(bdata)
-            if triggered_by and triggered_by != history.triggered_by:
-                history.triggered_by = triggered_by
-                db.session.commit()
-        if not bdata.get("building", True):
-            result = bdata.get("result") or "FAILURE"
-            _record_build_finish(
-                history=history,
-                status=result,
-                finished_at=datetime.now(timezone.utc),
-                duration_ms=bdata.get("duration"),
-                jenkins_url=build_url_final,
-            )
-            return result == "SUCCESS"
-        time.sleep(5)
-
-    _record_build_finish(
-        history=history,
-        status="FAILURE",
-        finished_at=datetime.now(timezone.utc),
-        duration_ms=None,
-        jenkins_url=build_url_final,
-    )
-    return False
-
-
-def _run_batch_build(app, job_names):
-    with app.app_context():
-        now_utc = datetime.now(timezone.utc)
-        pending_map = {}
-        for idx, job_name in enumerate(job_names):
-            history = JobBuildHistory(
-                job_name=job_name,
-                build_number=-(int(time.time()) + idx + 1),
-                status="PENDING",
-                triggered_by=None,
-                parameters=None,
-                started_at=now_utc,
-                finished_at=None,
-                duration_ms=None,
-                jenkins_url=None,
-            )
-            db.session.add(history)
-            pending_map[job_name] = history
-        db.session.commit()
-
-        for job_name in job_names:
-            try:
-                _, build_parameters = _fetch_job_parameters(job_name)
-                history = pending_map.get(job_name)
-                if not history:
-                    history = _record_build_start(
-                        job_name=job_name,
-                        build_number=-(int(time.time())),
-                        build_parameters=None,
-                        started_at=datetime.now(timezone.utc),
-                        jenkins_url=None,
-                    )
-                ok = _trigger_build_track(job_name, build_parameters, history)
-                if not ok:
-                    break
-            except Exception:
-                now_utc = datetime.now(timezone.utc)
-                history = pending_map.get(job_name)
-                if not history:
-                    history = _record_build_start(
-                        job_name=job_name,
-                        build_number=-(int(time.time())),
-                        build_parameters=None,
-                        started_at=now_utc,
-                        jenkins_url=None,
-                    )
-                _record_build_finish(
-                    history=history,
-                    status="FAILURE",
-                    finished_at=now_utc,
-                    duration_ms=None,
-                    jenkins_url=None,
-                )
-                break
-
-
 @main.route("/jenkins/build-batch", methods=["POST"])
 def build_jobs_batch():
     job_names = request.json.get("job_names")
     if not job_names or not isinstance(job_names, list):
         return jsonify({"error": "job_names list is required"}), 400
 
-    app = current_app._get_current_object()
-    thread = threading.Thread(target=_run_batch_build, args=(app, job_names), daemon=True)
-    thread.start()
-    return jsonify({"ok": True, "message": "Batch build started"})
+    queue = get_rq_queue(current_app)
+    rq_job = queue.enqueue(
+        run_batch_build_task,
+        job_names,
+        job_timeout=1800,
+        result_ttl=86400,
+        failure_ttl=604800,
+    )
+    return jsonify({"ok": True, "message": "Batch build queued", "job_id": rq_job.id})
 
 
 def _parse_local_datetime(value):
@@ -450,7 +204,7 @@ def jenkins_history():
     if triggered_by:
         query = query.filter(JobBuildHistory.triggered_by.ilike(f"%{triggered_by}%"))
     if system_name:
-        query = query.filter(Job.system_name.ilike(f"%{system_name}%"))
+        query = query.filter(Job.system_name == system_name)
     if audited == "true":
         query = query.filter(Job.is_audited.is_(True))
     elif audited == "false":
@@ -499,6 +253,16 @@ def jenkins_history():
         )
 
     total_pages = max((total + per_page - 1) // per_page, 1)
+    system_names = [
+        row[0]
+        for row in (
+            db.session.query(Job.system_name)
+            .filter(Job.system_name.isnot(None), Job.system_name != "")
+            .distinct()
+            .order_by(Job.system_name)
+            .all()
+        )
+    ]
 
     query_params = request.args.to_dict()
     if "per_page" not in query_params:
@@ -543,4 +307,5 @@ def jenkins_history():
             "started_from": started_from,
             "started_to": started_to,
         },
+        system_names=system_names,
     )

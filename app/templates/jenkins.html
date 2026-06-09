@@ -5,40 +5,47 @@
 {% endblock %}
 {% block content %}
 <div class="page-shell">
-    <div class="panel">
-        <div class="headcontainer">
+    <div class="panel jenkins-builder">
+        <section class="job-picker-panel">
             <div class="head-row">
                 <h2>选择 Jenkins Job</h2>
             </div>
-            <div id="loadingMessage" class="hint" style="display: none;">正在加载，请稍候...</div>
-            <table id="jobParamTable" border="1">
-                <thead>
-                    <tr>
-                        <th style="width: 40%">Job</th>
-                        <th style="width: 40%">参数</th>
-                        <th style="width: 20%">构建结果</th>
-                    </tr>
-                </thead>
-                <tbody>
-                </tbody>
-                <tfoot>
-                    <tr>
-                        <td colspan="3">
-                            <div class="table-actions">
-                                <button class="btn btn-secondary" id="clear-btn">清空</button>
-                                <button class="btn btn-primary" id="build-btn">构建</button>
-                            </div>
-                        </td>
-                    </tr>
-                </tfoot>
-            </table>
-        </div>
+            <div class="jenkins-search">
+                <label for="job-search">检索 Job</label>
+                <input id="job-search" class="input" type="search" placeholder="输入关键字快速匹配 Job">
+                <span class="hint" id="job-match-count"></span>
+            </div>
 
-        <div class="jobs-grid" id="jobs">
-            {% for job in jobs %}
-            <div class="item" data-value="{{ job }}">{{ job }}</div>
-            {% endfor %}
-        </div>
+            <div class="jobs-grid" id="jobs">
+                {% for job in jobs %}
+                <div class="item" data-value="{{ job }}">{{ job }}</div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <section class="selected-jobs-panel">
+            <div class="queue-header">
+                <h2>构建队列</h2>
+                <div class="queue-actions">
+                    <button class="btn btn-secondary" id="clear-btn">清空</button>
+                    <button class="btn btn-primary" id="build-btn">构建</button>
+                </div>
+            </div>
+            <div id="loadingMessage" class="hint" style="display: none;">正在加载，请稍候...</div>
+            <div class="queue-table-wrap">
+                <table id="jobParamTable" border="1">
+                    <thead>
+                        <tr>
+                            <th style="width: 38%">Job</th>
+                            <th style="width: 22%">状态</th>
+                            <th style="width: 40%">参数</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                </table>
+            </div>
+        </section>
     </div>
 </div>
 
@@ -47,6 +54,10 @@
     const clearBtn = document.getElementById('clear-btn');
     const jobParamTableBody = document.querySelector('#jobParamTable tbody');
     const buildBtn = document.getElementById('build-btn');
+    const jobSearchInput = document.getElementById('job-search');
+    const jobMatchCount = document.getElementById('job-match-count');
+    const jobPickerPanel = document.querySelector('.job-picker-panel');
+    const selectedJobs = [];
 
     items.forEach(item => {
         item.addEventListener('click', () => {
@@ -55,8 +66,15 @@
             const jobName = item.dataset.value;
 
             if (item.classList.contains('selected')) {
+                if (!selectedJobs.includes(jobName)) {
+                    selectedJobs.push(jobName);
+                }
                 addRowToTable(jobName);
             } else {
+                const index = selectedJobs.indexOf(jobName);
+                if (index !== -1) {
+                    selectedJobs.splice(index, 1);
+                }
                 removeRowFromTable(jobName);
             }
         });
@@ -64,11 +82,14 @@
 
     clearBtn.addEventListener('click', () => {
         document.querySelectorAll('.item').forEach(item => item.classList.remove('selected'));
+        selectedJobs.length = 0;
         jobParamTableBody.innerHTML = '';
     });
 
+    jobSearchInput.addEventListener('input', applyJobFilter);
+
     buildBtn.addEventListener('click', async () => {
-        const selected = Array.from(document.querySelectorAll('.item.selected')).map(el => el.dataset.value);
+        const selected = selectedJobs.slice();
 
         if (selected.length === 0) {
             alert('请先选择一个或多个 Job');
@@ -129,13 +150,14 @@
         jobNameCell.textContent = jobName;
         row.appendChild(jobNameCell);
 
-        const paramCell = document.createElement('td');
-        paramCell.textContent = '';
-        row.appendChild(paramCell);
-
         const statusCell = document.createElement('td');
         statusCell.textContent = '未构建';
         row.appendChild(statusCell);
+
+        const paramCell = document.createElement('td');
+        paramCell.className = 'param-cell';
+        paramCell.textContent = '未加载';
+        row.appendChild(paramCell);
 
         jobParamTableBody.appendChild(row);
     }
@@ -151,12 +173,37 @@
         const row = document.getElementById(`row-${jobName}`);
 
         if (row) {
-            const paramCell = row.querySelector('td:nth-child(2)');
+            const paramCell = row.querySelector('td:nth-child(3)');
 
             if (parameters.length > 0) {
-                const paramList = parameters.map(param => `${param.name}: ${param.default}`).join('\n');
-                paramCell.textContent = paramList;
-                paramCell.style.whiteSpace = 'pre-wrap';
+                paramCell.textContent = '';
+                const details = document.createElement('details');
+                details.className = 'param-details';
+
+                const summary = document.createElement('summary');
+                summary.textContent = `${parameters.length} 个参数`;
+                details.appendChild(summary);
+
+                const list = document.createElement('div');
+                list.className = 'param-list';
+                parameters.forEach(param => {
+                    const item = document.createElement('div');
+                    item.className = 'param-row';
+
+                    const name = document.createElement('span');
+                    name.className = 'param-name';
+                    name.textContent = param.name;
+
+                    const value = document.createElement('span');
+                    value.className = 'param-value';
+                    value.textContent = param.default;
+
+                    item.appendChild(name);
+                    item.appendChild(value);
+                    list.appendChild(item);
+                });
+                details.appendChild(list);
+                paramCell.appendChild(details);
             } else {
                 paramCell.textContent = '无参数';
             }
@@ -168,9 +215,26 @@
     function updateRowStatus(jobName, statusText) {
         const row = document.getElementById(`row-${jobName}`);
         if (row) {
-            const statusCell = row.querySelector('td:nth-child(3)');
+            const statusCell = row.querySelector('td:nth-child(2)');
             statusCell.textContent = statusText;
         }
     }
+
+    function applyJobFilter() {
+        const query = jobSearchInput.value.trim().toLowerCase();
+        let visibleCount = 0;
+        jobPickerPanel.classList.toggle('is-filtering', Boolean(query));
+        items.forEach(item => {
+            const jobName = item.dataset.value.toLowerCase();
+            const matched = !query || jobName.includes(query);
+            item.style.display = matched ? '' : 'none';
+            if (matched) {
+                visibleCount += 1;
+            }
+        });
+        jobMatchCount.textContent = query ? `匹配 ${visibleCount} 个 Job` : `共 ${items.length} 个 Job`;
+    }
+
+    applyJobFilter();
 </script>
 {% endblock %}

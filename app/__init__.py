@@ -7,7 +7,14 @@ from .models import db
 from .jenkins_sync import sync_jobs, sync_audited_job_history
 
 
-def create_app():
+def _env_bool(name, default=True):
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.strip().lower() in ("1", "true", "yes", "on")
+
+
+def create_app(start_scheduler=True):
     app = Flask(__name__, template_folder="templates")
 
     logging.basicConfig(
@@ -32,7 +39,8 @@ def create_app():
             db.create_all()
             sync_audited_job_history()
 
-    if (not app.debug) or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+    scheduler_enabled = start_scheduler and _env_bool("ENABLE_SCHEDULER", True)
+    if scheduler_enabled and ((not app.debug) or os.environ.get("WERKZEUG_RUN_MAIN") == "true"):
         scheduler = BackgroundScheduler(daemon=True)
         scheduler.add_job(
             scheduled_sync_jobs,

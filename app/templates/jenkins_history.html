@@ -100,7 +100,7 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        height: 36px;
+        height: var(--control-height);
         padding: 0 12px;
         border: 1px solid var(--border);
         border-radius: 8px;
@@ -137,6 +137,14 @@
 
     .history-field .input {
         background: #fffdfa;
+    }
+
+    .history-field .combo-trigger {
+        background: #fffdfa;
+    }
+
+    .history-field .combo-trigger:hover {
+        background: #fffef8;
     }
 
     .history-field.wide {
@@ -273,7 +281,18 @@
                 </div>
                 <div class="history-field">
                     <label for="system_name">系统名称</label>
-                    <input id="system_name" name="system_name" class="input" value="{{ filters.system_name }}" placeholder="输入系统名称">
+                    <input type="hidden" id="system_name" name="system_name" value="{{ filters.system_name }}">
+                    <div class="custom-combobox" data-combobox>
+                        <button class="combo-trigger" type="button" aria-haspopup="listbox" aria-expanded="false">
+                            <span class="combo-value">{{ filters.system_name or '全部' }}</span>
+                        </button>
+                        <div class="combo-menu" role="listbox">
+                        <button class="combo-option" type="button" data-value="" role="option">全部</button>
+                        {% for name in system_names %}
+                        <button class="combo-option" type="button" data-value="{{ name }}" role="option">{{ name }}</button>
+                        {% endfor %}
+                        </div>
+                    </div>
                 </div>
                 <div class="history-field wide">
                     <label for="started_from">开始时间</label>
@@ -285,12 +304,20 @@
                 </div>
                 <div class="history-field">
                     <label for="is_audited">是否审计</label>
-                    <select id="is_audited" name="is_audited" class="input">
-                        <option value="" {% if not filters.is_audited %}selected{% endif %}>全部</option>
-                        <option value="true" {% if filters.is_audited == 'true' %}selected{% endif %}>是</option>
-                        <option value="false" {% if filters.is_audited == 'false' %}selected{% endif %}>否</option>
-                        <option value="unset" {% if filters.is_audited == 'unset' %}selected{% endif %}>为空</option>
-                    </select>
+                    <input type="hidden" id="is_audited" name="is_audited" value="{{ filters.is_audited }}">
+                    <div class="custom-combobox" data-combobox>
+                        <button class="combo-trigger" type="button" aria-haspopup="listbox" aria-expanded="false">
+                            <span class="combo-value">
+                                {% if filters.is_audited == 'true' %}是{% elif filters.is_audited == 'false' %}否{% elif filters.is_audited == 'unset' %}为空{% else %}全部{% endif %}
+                            </span>
+                        </button>
+                        <div class="combo-menu" role="listbox">
+                            <button class="combo-option" type="button" data-value="" role="option">全部</button>
+                            <button class="combo-option" type="button" data-value="true" role="option">是</button>
+                            <button class="combo-option" type="button" data-value="false" role="option">否</button>
+                            <button class="combo-option" type="button" data-value="unset" role="option">为空</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </form>
