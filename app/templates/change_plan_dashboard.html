@@ -1,0 +1,1193 @@
+{% extends "base.html" %}
+
+{% block title %}变更计划 Dashboard{% endblock %}
+
+{% block content %}
+<style>
+    .change-plan-shell {
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+    }
+
+    .change-plan-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: flex-start;
+    }
+
+    .change-plan-head h2 {
+        width: auto;
+        margin-bottom: 4px;
+        text-align: left;
+    }
+
+    .change-plan-head p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 13px;
+    }
+
+    .plan-count {
+        padding: 8px 12px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: var(--bg-panel);
+        color: var(--muted);
+        font-size: 13px;
+        white-space: nowrap;
+    }
+
+    .plan-count strong {
+        color: var(--text);
+        margin-left: 4px;
+    }
+
+    .change-plan-filter {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+    }
+
+    .change-plan-toolbar {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .change-plan-grid {
+        display: grid;
+        grid-template-columns: minmax(320px, 2fr) repeat(3, minmax(180px, 1fr));
+        gap: 12px 14px;
+    }
+
+    .change-plan-field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        min-width: 0;
+    }
+
+    .change-plan-field label {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--muted);
+    }
+
+    .change-plan-field .input {
+        background: #fffdfa;
+    }
+
+    .change-plan-field.wide {
+        grid-column: span 2;
+    }
+
+    .date-range-picker {
+        position: relative;
+    }
+
+    .change-plan-toolbar .per-page-field {
+        width: 92px;
+    }
+
+    .date-range-trigger {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        width: 100%;
+        height: var(--control-height);
+        padding: 0 12px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: #fffdfa;
+        color: var(--text);
+        font: inherit;
+        cursor: pointer;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+    }
+
+    .date-range-picker.is-open .date-range-trigger,
+    .date-range-trigger:hover,
+    .date-range-trigger:focus {
+        border-color: var(--brand);
+        background: #fff;
+        box-shadow: 0 0 0 3px rgba(47, 111, 237, 0.12);
+        outline: none;
+    }
+
+    .date-range-summary {
+        min-width: 0;
+        overflow: hidden;
+        color: var(--text);
+        text-align: left;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .date-range-summary.is-empty {
+        color: var(--muted);
+    }
+
+    .date-range-caret {
+        width: 8px;
+        height: 8px;
+        flex: 0 0 auto;
+        border-right: 1.5px solid #64748b;
+        border-bottom: 1.5px solid #64748b;
+        transform: rotate(45deg) translateY(-2px);
+        transition: transform 0.2s ease;
+    }
+
+    .date-range-picker.is-open .date-range-caret {
+        transform: rotate(225deg) translateY(-1px);
+    }
+
+    .date-range-popover {
+        position: absolute;
+        top: calc(100% + 8px);
+        left: 0;
+        z-index: 30;
+        display: none;
+        width: min(720px, calc(100vw - 44px));
+        padding: 14px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: #fff;
+        box-shadow: 0 18px 45px rgba(15, 23, 42, 0.16);
+    }
+
+    .date-range-picker.is-open .date-range-popover {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .date-range-presets {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .date-preset {
+        height: 30px;
+        padding: 0 10px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: #f8fafc;
+        color: var(--muted);
+        font-size: 12px;
+        cursor: pointer;
+        transition: border-color 0.2s ease, color 0.2s ease, background-color 0.2s ease;
+    }
+
+    .date-preset:hover,
+    .date-preset.is-active {
+        border-color: var(--brand);
+        color: var(--brand-strong);
+        background: #eff6ff;
+    }
+
+    .date-calendar-wrap {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+    }
+
+    .date-calendar {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    .date-calendar-head {
+        display: grid;
+        grid-template-columns: 30px 1fr 30px;
+        align-items: center;
+        min-height: 38px;
+        padding: 0 8px;
+        border-bottom: 1px solid var(--border);
+        background: #f8fafc;
+    }
+
+    .date-calendar-title {
+        font-size: 13px;
+        font-weight: 700;
+        text-align: center;
+    }
+
+    .date-nav {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border: none;
+        border-radius: 6px;
+        background: transparent;
+        color: var(--muted);
+        cursor: pointer;
+    }
+
+    .date-nav:hover {
+        background: #e0e7ff;
+        color: var(--brand-strong);
+    }
+
+    .date-weekdays,
+    .date-days {
+        display: grid;
+        grid-template-columns: repeat(7, minmax(0, 1fr));
+    }
+
+    .date-weekdays span {
+        padding: 8px 0 6px;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 700;
+        text-align: center;
+    }
+
+    .date-day {
+        position: relative;
+        height: 34px;
+        border: none;
+        background: #fff;
+        color: var(--text);
+        font-size: 12px;
+        cursor: pointer;
+    }
+
+    .date-day:hover {
+        background: #eff6ff;
+        color: var(--brand-strong);
+    }
+
+    .date-day.is-muted {
+        color: #a8b1c2;
+    }
+
+    .date-day.is-in-range {
+        background: #dbeafe;
+    }
+
+    .date-day.is-selected {
+        background: var(--brand);
+        color: #fff;
+        font-weight: 700;
+    }
+
+    .date-day.is-today:not(.is-selected) {
+        color: var(--brand-strong);
+        font-weight: 700;
+    }
+
+    .date-range-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+        padding-top: 2px;
+    }
+
+    .date-range-hint {
+        color: var(--muted);
+        font-size: 12px;
+    }
+
+    .date-range-footer-actions {
+        display: flex;
+        gap: 8px;
+    }
+
+    .date-range-small-btn {
+        height: 32px;
+        padding: 0 11px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: #fff;
+        color: var(--text);
+        cursor: pointer;
+    }
+
+    .date-range-small-btn:hover {
+        border-color: var(--brand);
+        color: var(--brand-strong);
+    }
+
+    .date-range-small-btn.primary {
+        border-color: var(--brand);
+        background: var(--brand);
+        color: #fff;
+    }
+
+    .change-plan-reset {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        height: var(--control-height);
+        padding: 0 12px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--bg-panel);
+        color: var(--text);
+        text-decoration: none;
+        transition: border-color 0.2s ease, color 0.2s ease, background-color 0.2s ease;
+    }
+
+    .change-plan-reset:hover {
+        border-color: var(--brand);
+        color: var(--brand-strong);
+        background: #fff;
+    }
+
+    .change-plan-table-wrap {
+        overflow: hidden;
+    }
+
+    .change-plan-table-wrap table {
+        margin: 0;
+        box-shadow: none;
+        table-layout: fixed;
+        font-size: 13px;
+    }
+
+    .change-plan-table-wrap th,
+    .change-plan-table-wrap td {
+        padding: 10px 12px;
+        min-width: 0;
+        vertical-align: middle;
+    }
+
+    .change-plan-table-wrap td:nth-child(1),
+    .change-plan-table-wrap td:nth-child(2),
+    .change-plan-table-wrap td:nth-child(3),
+    .change-plan-table-wrap td:nth-child(4) {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .change-plan-table-wrap td:nth-child(1) {
+        color: var(--muted);
+        font-weight: 500;
+    }
+
+    .change-plan-table-wrap td:nth-child(5),
+    .change-plan-table-wrap td:nth-child(6),
+    .change-plan-table-wrap td:nth-child(7) {
+        text-align: left;
+        line-height: 1.45;
+        word-break: break-word;
+    }
+
+    .job-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        justify-content: flex-start;
+    }
+
+    .job-chip {
+        max-width: 100%;
+        padding: 2px 6px;
+        border: 1px solid #c7d2fe;
+        border-radius: 999px;
+        background: #eef2ff;
+        color: #3730a3;
+        font-size: 11px;
+        line-height: 1.5;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+
+    .job-chip-scheduled {
+        border-color: #c7d2fe;
+        background: #eef2ff;
+        color: #3730a3;
+    }
+
+    .job-chip-running {
+        border-color: #93c5fd;
+        background: #eff6ff;
+        color: #1d4ed8;
+    }
+
+    .job-chip-success {
+        border-color: #86efac;
+        background: #f0fdf4;
+        color: #166534;
+    }
+
+    .job-chip-failure {
+        border-color: #fecaca;
+        background: #fff1f2;
+        color: #b91c1c;
+    }
+
+    .job-chip-manual {
+        border-color: #fde68a;
+        background: #fffbeb;
+        color: #92400e;
+    }
+
+    .job-chip-cancelled {
+        border-color: #cbd5e1;
+        background: #f1f5f9;
+        color: #475569;
+    }
+
+    .job-chip-status {
+        margin-left: 4px;
+        font-weight: 700;
+    }
+
+    .job-chip-baseline {
+        margin-left: 4px;
+        color: inherit;
+        opacity: 0.78;
+    }
+
+    .schedule-cell {
+        display: grid;
+        gap: 7px;
+        justify-items: center;
+        text-align: center;
+    }
+
+    .schedule-actions {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .schedule-btn {
+        min-height: 30px;
+        padding: 0 9px;
+        border: 1px solid var(--border);
+        border-radius: 7px;
+        background: #fff;
+        color: var(--text);
+        cursor: pointer;
+        font: inherit;
+        font-size: 12px;
+    }
+
+    .schedule-btn.primary {
+        border-color: var(--brand);
+        background: var(--brand);
+        color: #fff;
+    }
+
+    .schedule-btn.danger {
+        border-color: #fecaca;
+        background: #fff1f2;
+        color: #b91c1c;
+    }
+
+    .schedule-status {
+        display: inline-flex;
+        width: fit-content;
+        padding: 2px 8px;
+        border: 1px solid #c7d2fe;
+        border-radius: 999px;
+        background: #eef2ff;
+        color: #3730a3;
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+    .schedule-time {
+        color: var(--muted);
+        font-size: 12px;
+        white-space: nowrap;
+    }
+
+    .schedule-modal-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 1000;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 18px;
+        background: rgba(15, 23, 42, 0.36);
+    }
+
+    .schedule-modal-backdrop.is-open {
+        display: flex;
+    }
+
+    .schedule-modal {
+        width: min(440px, 100%);
+        padding: 18px;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: #fff;
+        box-shadow: 0 24px 60px rgba(15, 23, 42, 0.22);
+    }
+
+    .schedule-modal h3 {
+        margin: 0 0 8px;
+        font-size: 18px;
+    }
+
+    .schedule-modal p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.6;
+    }
+
+    .schedule-modal-field {
+        display: none;
+        margin-top: 12px;
+    }
+
+    .schedule-modal-field.is-visible {
+        display: grid;
+        gap: 6px;
+    }
+
+    .schedule-modal-field label {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+    .schedule-modal-error {
+        display: none;
+        margin-top: 10px;
+        color: #b91c1c;
+        font-size: 13px;
+    }
+
+    .schedule-modal-error.is-visible {
+        display: block;
+    }
+
+    .schedule-modal-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 16px;
+    }
+
+    .change-plan-pagination {
+        padding: 12px 16px 14px;
+    }
+
+    @media (max-width: 760px) {
+        .change-plan-head {
+            flex-direction: column;
+        }
+
+        .change-plan-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .change-plan-field.wide {
+            grid-column: span 1;
+        }
+
+        .date-range-field {
+            grid-column: span 2;
+        }
+    }
+
+    @media (max-width: 1280px) {
+        .change-plan-table-wrap table {
+            font-size: 12px;
+        }
+
+        .change-plan-table-wrap th,
+        .change-plan-table-wrap td {
+            padding: 9px 8px;
+        }
+
+        .job-chip {
+            font-size: 10.5px;
+            padding: 2px 5px;
+        }
+
+        .schedule-btn {
+            padding: 0 7px;
+            font-size: 11px;
+        }
+    }
+
+    @media (max-width: 540px) {
+        .change-plan-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .date-range-popover {
+            position: fixed;
+            top: 96px;
+            left: 16px;
+            right: 16px;
+            width: auto;
+            max-height: calc(100vh - 120px);
+            overflow: auto;
+        }
+
+        .date-range-field {
+            grid-column: span 1;
+        }
+
+        .date-calendar-wrap {
+            grid-template-columns: 1fr;
+        }
+
+        .date-range-footer {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .date-range-footer-actions {
+            justify-content: flex-end;
+        }
+
+        .change-plan-toolbar,
+        .change-plan-toolbar .btn,
+        .change-plan-toolbar .change-plan-reset {
+            width: 100%;
+        }
+
+        .change-plan-pagination {
+            flex-direction: column;
+            align-items: stretch;
+        }
+    }
+</style>
+
+<div class="page-shell change-plan-shell">
+    <section class="panel change-plan-head">
+        <div>
+            <h2>变更计划 Dashboard</h2>
+            <p>支持按计划开始时间、发起人、系统名称和 Jenkins 清单筛选。</p>
+        </div>
+        <div>
+            <span class="plan-count">总数<strong>{{ total }}</strong></span>
+            <span class="plan-count">本页<strong>{{ rows|length }}</strong></span>
+            <span class="plan-count">当前页<strong>{{ page }}/{{ total_pages }}</strong></span>
+        </div>
+    </section>
+
+    <section class="panel">
+        <form class="change-plan-filter" method="get" action="/jenkins/change-plans">
+            <div class="change-plan-grid">
+                <div class="change-plan-field date-range-field">
+                    <label>计划开始日期</label>
+                    <div class="date-range-picker" data-date-range-picker>
+                        <input id="plan_start_from" name="plan_start_from" type="hidden" value="{{ filters.plan_start_from }}">
+                        <input id="plan_start_to" name="plan_start_to" type="hidden" value="{{ filters.plan_start_to }}">
+                        <button class="date-range-trigger" type="button" aria-haspopup="dialog" aria-expanded="false">
+                            <span class="date-range-summary is-empty" data-date-summary>选择计划开始日期范围</span>
+                            <span class="date-range-caret" aria-hidden="true"></span>
+                        </button>
+                        <div class="date-range-popover" role="dialog" aria-label="选择计划开始日期范围">
+                            <div class="date-range-presets" aria-label="计划开始日期快捷范围">
+                                <button class="date-preset" type="button" data-range="today">今天</button>
+                                <button class="date-preset" type="button" data-range="7d">近 7 天</button>
+                                <button class="date-preset" type="button" data-range="month">本月</button>
+                            </div>
+                            <div class="date-calendar-wrap">
+                                <div class="date-calendar">
+                                    <div class="date-calendar-head">
+                                        <button class="date-nav" type="button" data-nav="-1" aria-label="上个月">&lt;</button>
+                                        <div class="date-calendar-title" data-month-label="0"></div>
+                                        <button class="date-nav" type="button" data-nav="1" aria-label="下个月">&gt;</button>
+                                    </div>
+                                    <div class="date-weekdays">
+                                        <span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span>
+                                    </div>
+                                    <div class="date-days" data-days="0"></div>
+                                </div>
+                                <div class="date-calendar">
+                                    <div class="date-calendar-head">
+                                        <button class="date-nav" type="button" data-nav="-1" aria-label="上个月">&lt;</button>
+                                        <div class="date-calendar-title" data-month-label="1"></div>
+                                        <button class="date-nav" type="button" data-nav="1" aria-label="下个月">&gt;</button>
+                                    </div>
+                                    <div class="date-weekdays">
+                                        <span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span>
+                                    </div>
+                                    <div class="date-days" data-days="1"></div>
+                                </div>
+                            </div>
+                            <div class="date-range-footer">
+                                <span class="date-range-hint" data-date-hint>先选择开始日期，再选择结束日期</span>
+                                <div class="date-range-footer-actions">
+                                    <button class="date-range-small-btn" type="button" data-date-clear>清空</button>
+                                    <button class="date-range-small-btn primary" type="button" data-date-apply>确定</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="change-plan-field">
+                    <label for="requester">发起人</label>
+                    <input id="requester" name="requester" class="input" value="{{ filters.requester }}" placeholder="输入发起人">
+                </div>
+                <div class="change-plan-field">
+                    <label for="system_name">系统名称</label>
+                    <input id="system_name" name="system_name" class="input" value="{{ filters.system_name }}" placeholder="输入系统名称">
+                </div>
+                <div class="change-plan-field">
+                    <label for="jenkins_job">Jenkins 清单</label>
+                    <input id="jenkins_job" name="jenkins_job" class="input" value="{{ filters.jenkins_job }}" placeholder="输入 Jenkins Job 关键字">
+                </div>
+            </div>
+            <div class="change-plan-toolbar">
+                <label for="per_page" class="refresh-label">每页</label>
+                <input type="hidden" id="per_page" name="per_page" value="{{ per_page }}" onchange="this.form.submit()">
+                <div class="custom-combobox per-page-field" data-combobox>
+                    <button class="combo-trigger" type="button" aria-haspopup="listbox" aria-expanded="false">
+                        <span class="combo-value">{{ per_page }}</span>
+                    </button>
+                    <div class="combo-menu" role="listbox">
+                        <button class="combo-option" type="button" data-value="30" role="option">30</button>
+                        <button class="combo-option" type="button" data-value="50" role="option">50</button>
+                        <button class="combo-option" type="button" data-value="100" role="option">100</button>
+                    </div>
+                </div>
+                <a class="change-plan-reset" href="/jenkins/change-plans">重置</a>
+                <button class="btn" type="submit">筛选</button>
+            </div>
+        </form>
+    </section>
+
+    <section class="panel change-plan-table-wrap">
+        <table>
+            <colgroup>
+                <col style="width: 10%;">
+                <col style="width: 8%;">
+                <col style="width: 12%;">
+                <col style="width: 12%;">
+                <col style="width: 14%;">
+                <col style="width: 31%;">
+                <col style="width: 13%;">
+            </colgroup>
+            <thead>
+                <tr>
+                    <th>变更单编号</th>
+                    <th>发起人</th>
+                    <th>计划开始时间</th>
+                    <th>计划结束时间</th>
+                    <th>系统名称</th>
+                    <th>jobs</th>
+                    <th>定时任务</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                <tr>
+                    <td>{{ row.change_number }}</td>
+                    <td>{{ row.requester }}</td>
+                    <td>{{ row.plan_start_at }}</td>
+                    <td>{{ row.plan_end_at }}</td>
+                    <td>{{ row.system_name }}</td>
+                    <td>
+                        {% if row.jenkins_jobs %}
+                        <div class="job-list">
+                            {% for job in row.jenkins_jobs %}
+                            {% if job is mapping %}
+                            <span class="job-chip{% if job.schedule_status_class %} job-chip-{{ job.schedule_status_class }}{% endif %}" title="{% if job.schedule_status_label %}{{ job.schedule_status_label }}{% if job.baseline_build_number is not none %}，基线 #{{ job.baseline_build_number }}{% endif %}{% endif %}">
+                                {{ job.jenkins_job }}{% if job.job_person is string %}：{{ job.job_person }}{% elif job.job_person %}：{{ job.job_person|join(' / ') }}{% endif %}
+                                {% if job.schedule_status and job.baseline_build_number is not none %}<span class="job-chip-baseline">基线 #{{ job.baseline_build_number }}</span>{% endif %}
+                                {% if job.schedule_status_label %}<span class="job-chip-status">{{ job.schedule_status_label }}</span>{% endif %}
+                            </span>
+                            {% else %}
+                            <span class="job-chip">{{ job }}</span>
+                            {% endif %}
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <span class="hint">未填写</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="schedule-cell" data-schedule-cell>
+                            {% if row.schedule %}
+                            <span class="schedule-status">{{ row.schedule.status_label }}</span>
+                            {% if row.schedule.scheduled_at %}<span class="schedule-time">执行：{{ row.schedule.scheduled_at }}</span>{% endif %}
+                            {% if row.schedule.can_cancel %}
+                            <div class="schedule-actions">
+                                <button class="schedule-btn danger" type="button" data-schedule-cancel data-plan-id="{{ row.id }}">取消任务</button>
+                            </div>
+                            {% else %}
+                            <div class="schedule-actions">
+                                <button class="schedule-btn primary" type="button" data-schedule-create data-plan-id="{{ row.id }}" data-default-time="{{ row.plan_start_at|replace(' ', 'T') }}">重新创建</button>
+                            </div>
+                            {% endif %}
+                            {% else %}
+                            <div class="schedule-actions">
+                                <button class="schedule-btn primary" type="button" data-schedule-create data-plan-id="{{ row.id }}" data-default-time="{{ row.plan_start_at|replace(' ', 'T') }}">创建定时任务</button>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+                {% if rows|length == 0 %}
+                <tr>
+                    <td colspan="7" class="empty">暂无变更计划</td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+        <div class="pagination change-plan-pagination">
+            <div class="page-info">本页 {{ rows|length }} 条 / 共 {{ total }} 条 / 第 {{ page }} 页</div>
+            <div class="page-actions">
+                {% if prev_url %}
+                <a class="page-link" href="{{ prev_url }}">上一页</a>
+                {% endif %}
+                {% if next_url %}
+                <a class="page-link" href="{{ next_url }}">下一页</a>
+                {% endif %}
+            </div>
+        </div>
+    </section>
+</div>
+<div class="schedule-modal-backdrop" id="schedule_confirm_modal" role="dialog" aria-modal="true" aria-labelledby="schedule_modal_title">
+    <div class="schedule-modal">
+        <h3 id="schedule_modal_title">确认操作</h3>
+        <p id="schedule_modal_message"></p>
+        <div class="schedule-modal-field" id="schedule_modal_time_field">
+            <input id="schedule_modal_time" class="input" type="datetime-local">
+        </div>
+        <div class="schedule-modal-error" id="schedule_modal_error"></div>
+        <div class="schedule-modal-actions">
+            <button class="schedule-btn" type="button" id="schedule_modal_cancel">取消</button>
+            <button class="schedule-btn primary" type="button" id="schedule_modal_confirm">确认</button>
+        </div>
+    </div>
+</div>
+<script>
+    (function () {
+        const modal = document.getElementById("schedule_confirm_modal");
+        const modalTitle = document.getElementById("schedule_modal_title");
+        const modalMessage = document.getElementById("schedule_modal_message");
+        const modalError = document.getElementById("schedule_modal_error");
+        const modalCancel = document.getElementById("schedule_modal_cancel");
+        const modalConfirm = document.getElementById("schedule_modal_confirm");
+        const modalTimeField = document.getElementById("schedule_modal_time_field");
+        const modalTimeInput = document.getElementById("schedule_modal_time");
+        let pendingAction = null;
+
+        async function postScheduleAction(url, body) {
+            const response = await fetch(url, {
+                method: "POST",
+                headers: {
+                    "Accept": "application/json",
+                    "Content-Type": "application/json"
+                },
+                body: body ? JSON.stringify(body) : undefined
+            });
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok || !payload.ok) {
+                throw new Error(payload.error || response.statusText || "操作失败");
+            }
+            return payload;
+        }
+
+        function closeModal() {
+            modal.classList.remove("is-open");
+            modalError.classList.remove("is-visible");
+            modalError.textContent = "";
+            modalConfirm.disabled = false;
+            modalTimeField.classList.remove("is-visible");
+            modalTimeInput.value = "";
+            pendingAction = null;
+        }
+
+        function openModal({ title, message, confirmText, danger, showTime, defaultTime, action }) {
+            pendingAction = action;
+            modalTitle.textContent = title;
+            modalMessage.textContent = message;
+            modalConfirm.textContent = confirmText || "确认";
+            modalConfirm.classList.toggle("danger", Boolean(danger));
+            modalConfirm.classList.toggle("primary", !danger);
+            modalTimeField.classList.toggle("is-visible", Boolean(showTime));
+            modalTimeInput.value = showTime ? normalizeScheduleTime(defaultTime) : "";
+            modalError.classList.remove("is-visible");
+            modalError.textContent = "";
+            modal.classList.add("is-open");
+            if (showTime) {
+                modalTimeInput.focus();
+            }
+        }
+
+        function formatDatetimeLocal(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, "0");
+            const day = String(date.getDate()).padStart(2, "0");
+            const hour = String(date.getHours()).padStart(2, "0");
+            const minute = String(date.getMinutes()).padStart(2, "0");
+            return `${year}-${month}-${day}T${hour}:${minute}`;
+        }
+
+        function normalizeScheduleTime(value) {
+            const now = new Date();
+            const fallback = new Date(now.getTime() + 5 * 60 * 1000);
+            if (!value) return formatDatetimeLocal(fallback);
+            const candidate = new Date(value);
+            if (Number.isNaN(candidate.getTime()) || candidate <= now) {
+                return formatDatetimeLocal(fallback);
+            }
+            return value.slice(0, 16);
+        }
+
+        modalCancel.addEventListener("click", closeModal);
+        modal.addEventListener("click", (event) => {
+            if (event.target === modal) {
+                closeModal();
+            }
+        });
+        document.addEventListener("keydown", (event) => {
+            if (event.key === "Escape" && modal.classList.contains("is-open")) {
+                closeModal();
+            }
+        });
+        modalConfirm.addEventListener("click", async () => {
+            if (!pendingAction) return;
+            modalConfirm.disabled = true;
+            try {
+                await pendingAction();
+                window.location.reload();
+            } catch (error) {
+                modalError.textContent = error.message;
+                modalError.classList.add("is-visible");
+                modalConfirm.disabled = false;
+            }
+        });
+
+        document.querySelectorAll("[data-schedule-create]").forEach((button) => {
+            button.addEventListener("click", () => {
+                const planId = button.dataset.planId;
+                const defaultTime = button.dataset.defaultTime || "";
+                openModal({
+                    title: "创建定时任务",
+                    message: "请选择执行时间。",
+                    confirmText: "创建",
+                    showTime: true,
+                    defaultTime,
+                    action: async () => {
+                        if (!modalTimeInput.value) {
+                            throw new Error("请选择执行时间");
+                        }
+                        button.disabled = true;
+                        await postScheduleAction(
+                            `/jenkins/change-plans/${planId}/build-schedule`,
+                            { scheduled_at: modalTimeInput.value }
+                        );
+                    }
+                });
+            });
+        });
+
+        document.querySelectorAll("[data-schedule-cancel]").forEach((button) => {
+            button.addEventListener("click", () => {
+                const planId = button.dataset.planId;
+                openModal({
+                    title: "取消定时任务",
+                    message: "已开始的 Jenkins 构建不会被强制停止，后续未开始的 Job 会停止执行。",
+                    confirmText: "确认取消",
+                    danger: true,
+                    action: async () => {
+                        button.disabled = true;
+                        await postScheduleAction(`/jenkins/change-plans/${planId}/build-schedule/cancel`);
+                    }
+                });
+            });
+        });
+    })();
+
+    (function () {
+        const picker = document.querySelector("[data-date-range-picker]");
+        const fromInput = document.getElementById("plan_start_from");
+        const toInput = document.getElementById("plan_start_to");
+        if (!picker || !fromInput || !toInput) {
+            return;
+        }
+
+        const trigger = picker.querySelector(".date-range-trigger");
+        const summary = picker.querySelector("[data-date-summary]");
+        const hint = picker.querySelector("[data-date-hint]");
+        const monthLabels = picker.querySelectorAll("[data-month-label]");
+        const dayGrids = picker.querySelectorAll("[data-days]");
+        const presets = picker.querySelectorAll(".date-preset");
+        const clearButton = picker.querySelector("[data-date-clear]");
+        const applyButton = picker.querySelector("[data-date-apply]");
+        const monthNames = ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"];
+        let selectedStart = parseDate(fromInput.value);
+        let selectedEnd = parseDate(toInput.value);
+        let displayMonth = firstOfMonth(selectedStart || selectedEnd || new Date());
+
+        function firstOfMonth(date) {
+            return new Date(date.getFullYear(), date.getMonth(), 1);
+        }
+
+        function addMonths(date, amount) {
+            return new Date(date.getFullYear(), date.getMonth() + amount, 1);
+        }
+
+        function parseDate(value) {
+            const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value || "");
+            if (!match) {
+                return null;
+            }
+            return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+        }
+
+        function formatDate(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, "0");
+            const day = String(date.getDate()).padStart(2, "0");
+            return `${year}-${month}-${day}`;
+        }
+
+        function displayDate(date) {
+            return `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, "0")}/${String(date.getDate()).padStart(2, "0")}`;
+        }
+
+        function sameDay(left, right) {
+            return left && right && formatDate(left) === formatDate(right);
+        }
+
+        function updateInputs() {
+            fromInput.value = selectedStart ? formatDate(selectedStart) : "";
+            toInput.value = selectedEnd ? formatDate(selectedEnd) : "";
+        }
+
+        function updateSummary() {
+            if (selectedStart && selectedEnd) {
+                summary.textContent = `${displayDate(selectedStart)} - ${displayDate(selectedEnd)}`;
+                summary.classList.remove("is-empty");
+                hint.textContent = "已选择完整日期范围";
+            } else if (selectedStart) {
+                summary.textContent = `${displayDate(selectedStart)} - 选择结束日期`;
+                summary.classList.remove("is-empty");
+                hint.textContent = "请选择结束日期";
+            } else {
+                summary.textContent = "选择计划开始日期范围";
+                summary.classList.add("is-empty");
+                hint.textContent = "先选择开始日期，再选择结束日期";
+            }
+        }
+
+        function renderCalendar() {
+            monthLabels.forEach((label, index) => {
+                const month = addMonths(displayMonth, index);
+                label.textContent = `${month.getFullYear()}年 ${monthNames[month.getMonth()]}`;
+            });
+
+            dayGrids.forEach((grid, index) => {
+                const month = addMonths(displayMonth, index);
+                const gridStart = new Date(month);
+                gridStart.setDate(1 - month.getDay());
+                grid.textContent = "";
+
+                for (let i = 0; i < 42; i += 1) {
+                    const date = new Date(gridStart);
+                    date.setDate(gridStart.getDate() + i);
+                    const button = document.createElement("button");
+                    button.className = "date-day";
+                    button.type = "button";
+                    button.textContent = String(date.getDate());
+                    button.dataset.date = formatDate(date);
+                    if (date.getMonth() !== month.getMonth()) {
+                        button.classList.add("is-muted");
+                    }
+                    if (sameDay(date, new Date())) {
+                        button.classList.add("is-today");
+                    }
+                    if (sameDay(date, selectedStart) || sameDay(date, selectedEnd)) {
+                        button.classList.add("is-selected");
+                    } else if (selectedStart && selectedEnd && date > selectedStart && date < selectedEnd) {
+                        button.classList.add("is-in-range");
+                    }
+                    button.addEventListener("click", () => selectDate(date));
+                    grid.appendChild(button);
+                }
+            });
+        }
+
+        function selectDate(date) {
+            presets.forEach((button) => button.classList.remove("is-active"));
+            if (!selectedStart || (selectedStart && selectedEnd) || date < selectedStart) {
+                selectedStart = new Date(date);
+                selectedEnd = null;
+            } else {
+                selectedEnd = new Date(date);
+            }
+            updateInputs();
+            updateSummary();
+            renderCalendar();
+        }
+
+        function setRange(start, end) {
+            selectedStart = start;
+            selectedEnd = end;
+            displayMonth = firstOfMonth(start || end || new Date());
+            updateInputs();
+            updateSummary();
+            renderCalendar();
+        }
+
+        function setOpen(isOpen) {
+            picker.classList.toggle("is-open", isOpen);
+            trigger.setAttribute("aria-expanded", String(isOpen));
+            if (isOpen) {
+                renderCalendar();
+            }
+        }
+
+        picker.querySelectorAll("[data-nav]").forEach((button) => {
+            button.addEventListener("click", () => {
+                displayMonth = addMonths(displayMonth, Number(button.dataset.nav));
+                renderCalendar();
+            });
+        });
+
+        presets.forEach((button) => {
+            button.addEventListener("click", () => {
+                const now = new Date();
+                const start = new Date(now);
+                presets.forEach((item) => item.classList.remove("is-active"));
+                button.classList.add("is-active");
+                if (button.dataset.range === "7d") {
+                    start.setDate(now.getDate() - 6);
+                } else if (button.dataset.range === "month") {
+                    start.setDate(1);
+                }
+                setRange(start, now);
+            });
+        });
+
+        trigger.addEventListener("click", () => setOpen(!picker.classList.contains("is-open")));
+        clearButton.addEventListener("click", () => {
+            presets.forEach((button) => button.classList.remove("is-active"));
+            setRange(null, null);
+        });
+        applyButton.addEventListener("click", () => setOpen(false));
+        document.addEventListener("click", (event) => {
+            if (!picker.contains(event.target)) {
+                setOpen(false);
+            }
+        });
+        document.addEventListener("keydown", (event) => {
+            if (event.key === "Escape") {
+                setOpen(false);
+            }
+        });
+
+        updateSummary();
+        renderCalendar();
+    })();
+</script>
+{% endblock %}
