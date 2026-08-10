@@ -106,7 +106,28 @@ def _extract_parameters(build):
     return None
 
 
-def sync_audited_job_history(months=3):
+def _build_finished_at(started_at, duration_ms, building):
+    if building or duration_ms is None:
+        return None
+    return started_at + timedelta(milliseconds=duration_ms)
+
+
+def _apply_build_snapshot(history, build, started_at):
+    duration_ms = build.get("duration")
+    triggered_by = _extract_triggered_by(build)
+    parameters = _extract_parameters(build)
+    history.status = "RUNNING" if build.get("building") else (build.get("result") or "UNKNOWN")
+    if triggered_by:
+        history.triggered_by = triggered_by
+    if parameters is not None:
+        history.parameters = parameters
+    history.started_at = started_at
+    history.finished_at = _build_finished_at(started_at, duration_ms, build.get("building"))
+    history.duration_ms = duration_ms
+    history.jenkins_url = build.get("url")
+
+
+def sync_audited_job_history(months=6):
     audited_jobs = Job.query.filter(Job.is_audited.is_(True)).all()
     if not audited_jobs:
         return
@@ -120,34 +141,31 @@ def sync_audited_job_history(months=3):
             if build_number is None:
                 continue
 
-            exists = (
-                JobBuildHistory.query.filter_by(job_name=job.name, build_number=build_number)
-                .with_entities(JobBuildHistory.id)
-                .first()
-            )
-            if exists:
-                continue
-
             timestamp_ms = build.get("timestamp") or 0
             started_at = datetime.fromtimestamp(timestamp_ms / 1000, tz=timezone.utc)
-            duration_ms = build.get("duration")
-            finished_at = None
-            if duration_ms is not None:
-                finished_at = started_at + timedelta(milliseconds=duration_ms)
+            history = JobBuildHistory.query.filter_by(
+                job_name=job.name,
+                build_number=build_number,
+            ).first()
 
-            status = "RUNNING" if build.get("building") else (build.get("result") or "UNKNOWN")
+            if history:
+                old_status = history.status
+                _apply_build_snapshot(history, build, started_at)
+                if old_status != history.status:
+                    logger.info(
+                        "Updated Jenkins build history: job %s build #%d %s -> %s",
+                        job.name,
+                        build_number,
+                        old_status,
+                        history.status,
+                    )
+                continue
 
             history = JobBuildHistory(
                 job_name=job.name,
                 build_number=build_number,
-                status=status,
-                triggered_by=_extract_triggered_by(build),
-                parameters=_extract_parameters(build),
-                started_at=started_at,
-                finished_at=finished_at,
-                duration_ms=duration_ms,
-                jenkins_url=build.get("url"),
             )
+            _apply_build_snapshot(history, build, started_at)
             db.session.add(history)
             logger.info("新增构建历史: job %s build #%d", job.name, build_number)
 

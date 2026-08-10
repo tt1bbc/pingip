@@ -3,7 +3,7 @@
 {% block title %}Jenkins 审计{% endblock %}
 
 {% block content %}
-<div class="page-shell">
+<div class="page-shell audit-page">
     <div class="headcontainer">
         <div class="head-row">
             <h2>Jenkins 审计</h2>
@@ -52,7 +52,7 @@
         </thead>
         <tbody>
             {% for job in jobs %}
-            <tr data-name="{{ job.name }}" data-audited="{{ '' if job.is_audited is none else job.is_audited }}">
+            <tr class="audit-row" data-name="{{ job.name }}" data-audited="{{ '' if job.is_audited is none else job.is_audited }}" style="display: none;">
                 <td class="job-name">{{ job.name }}</td>
                 <td>
                     <input type="hidden" class="audit-select" value="{% if job.is_audited is none %}{% elif job.is_audited %}true{% else %}false{% endif %}">
@@ -76,11 +76,9 @@
                 <td class="save-status"></td>
             </tr>
             {% endfor %}
-            {% if jobs|length == 0 %}
-            <tr>
-                <td colspan="5" class="empty">暂无 Job</td>
+            <tr id="audit_empty_row" style="display: none;">
+                <td colspan="5" class="empty">暂无匹配 Job</td>
             </tr>
-            {% endif %}
         </tbody>
     </table>
 
@@ -107,7 +105,8 @@
         const systemFilter = document.getElementById('system_filter');
         const auditFilter = document.getElementById('audit_filter');
         const resetBtn = document.getElementById('reset_filter');
-        const rows = Array.from(document.querySelectorAll('#auditTable tbody tr'));
+        const rows = Array.from(document.querySelectorAll('#auditTable tbody tr.audit-row'));
+        const emptyRow = document.getElementById('audit_empty_row');
         const pageInfo = document.getElementById('audit_page_info');
         const prevBtn = document.getElementById('audit_prev');
         const nextBtn = document.getElementById('audit_next');
@@ -152,6 +151,7 @@
             pageRows.forEach(row => {
                 row.style.display = '';
             });
+            emptyRow.style.display = total === 0 ? '' : 'none';
 
             pageInfo.textContent = `本页 ${pageRows.length} 条 / 共 ${total} 条 / 第 ${currentPage} 页`;
             prevBtn.disabled = currentPage <= 1;
@@ -214,8 +214,11 @@
                         const err = await resp.json().catch(() => ({}));
                         throw new Error(err.error || resp.statusText);
                     }
-                    row.dataset.audited = payload.is_audited === null ? '' : String(payload.is_audited);
+                    const result = await resp.json();
+                    row.dataset.audited = result.is_audited === null ? '' : String(result.is_audited);
+                    systemInput.value = result.system_name || '';
                     statusCell.textContent = '已保存';
+                    renderPage();
                 } catch (err) {
                     statusCell.textContent = `失败: ${err.message}`;
                 } finally {

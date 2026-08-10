@@ -85,8 +85,19 @@ class Config:
     JENKINS_API_TOKEN = '11c91f068a495c809f4afeed3cbcef947f'
     SQLALCHEMY_DATABASE_URI = os.getenv(
         "DATABASE_URL",
-        "postgresql+psycopg2://devops:Loongair123@localhost:5432/devops",
+        "postgresql+psycopg2://devops:Loongair123@10.106.19.88:5432/devops",
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+    REDIS_URL = os.getenv("REDIS_URL", "redis://10.106.19.88:6379/0")
     RQ_QUEUE_NAME = os.getenv("RQ_QUEUE_NAME", "jenkins")
+    ZERO_CODE_DATA_LIST_URL = os.getenv(
+        "ZERO_CODE_DATA_LIST_URL",
+        "https://zerocode.loongair.cn/api/v5/app/entry/data/list",
+    )
+    ZERO_CODE_APP_ID = os.getenv("ZERO_CODE_APP_ID", "647954ca7584d000075cd280")
+    ZERO_CODE_ENTRY_ID = os.getenv("ZERO_CODE_ENTRY_ID", "656db65257fe6642e168aafc")
+    ZERO_CODE_BEARER_TOKEN = os.getenv(
+        "ZERO_CODE_BEARER_TOKEN",
+        "kXCMelqort61ynp457pHPlf76UCO7EeW",
+    )
+    ZERO_CODE_COOKIE = os.getenv("ZERO_CODE_COOKIE", "")

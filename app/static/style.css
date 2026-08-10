@@ -752,6 +752,19 @@ table {
     overflow: hidden;
 }
 
+.audit-page #auditTable {
+    overflow: visible;
+}
+
+.audit-page #auditTable tbody td {
+    position: relative;
+}
+
+.audit-page #auditTable .custom-combobox.is-open,
+.audit-page #auditTable .combo-menu {
+    z-index: 200;
+}
+
 tfoot td {
     padding: 10px 12px;
     background: var(--bg-panel);

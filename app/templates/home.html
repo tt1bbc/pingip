@@ -8,10 +8,11 @@
         <div>
             <p class="eyebrow">DevOps Console</p>
             <h1>内网探测与 Jenkins 构建控制台</h1>
-            <p class="home-lead">集中处理网段连通性探测、Jenkins Job 串行构建、构建历史查询和审计信息维护。</p>
+            <p class="home-lead">集中处理网段连通性探测、Jenkins Job 串行构建、构建历史查询、变更计划同步和审计信息维护。</p>
         </div>
         <div class="home-actions">
-            <a class="btn btn-primary" href="/jenkins/trigger">进入构建</a>
+            <a class="btn btn-primary" href="/jenkins/trigger">构建jenkins</a>
+            <a class="btn btn-secondary" href="/jenkins/change-plans">变更计划</a>
             <a class="btn btn-secondary" href="/jenkins/history">查看记录</a>
             <a class="btn btn-secondary" href="/net/pingpage">网段探测</a>
         </div>
@@ -25,8 +26,13 @@
         </a>
         <a class="feature-tile" href="/jenkins/trigger">
             <span class="feature-kicker">Build</span>
-            <strong>Jenkins 构建</strong>
+            <strong>构建jenkins</strong>
             <span>按点击顺序选择 Job，提交后进入 Redis 队列，由 RQ Worker 串行执行。</span>
+        </a>
+        <a class="feature-tile" href="/jenkins/change-plans">
+            <span class="feature-kicker">Change</span>
+            <strong>变更计划</strong>
+            <span>每 2 分钟同步 ZeroCode 系统变更计划，支持按日期、发起人、系统名称和 Jenkins 清单筛选。</span>
         </a>
         <a class="feature-tile" href="/jenkins/history">
             <span class="feature-kicker">History</span>
@@ -52,7 +58,7 @@
             <pre><code>pip install -r requirements.txt
 $env:ENABLE_SCHEDULER="false"
 python run.py</code></pre>
-            <p><code>ENABLE_SCHEDULER=false</code> 表示启动 Flask 时不运行 Jenkins 同步定时任务，适合本地开发和手动测试。</p>
+            <p><code>ENABLE_SCHEDULER=false</code> 表示启动 Flask 时不运行 Jenkins 同步、构建历史同步和变更计划同步定时任务，适合本地开发和手动测试。</p>
         </div>
 
         <div class="doc-section">
@@ -61,6 +67,16 @@ python run.py</code></pre>
             <pre><code>cd C:\Users\black\Documents\mypython\myapp\pingip
 rq worker jenkins --url redis://localhost:6379/0 --worker-class rq.SimpleWorker</code></pre>
             <p>只启动 Flask 时，点击构建只会入队；只有 RQ Worker 正在运行时，才会真正触发 Jenkins 构建。</p>
+        </div>
+
+        <div class="doc-section">
+            <h3>变更计划同步</h3>
+            <ul>
+                <li>系统每 2 分钟调用 ZeroCode 接口，同步本周以来的系统变更计划。</li>
+                <li>同步数据按接口 <code>_id</code> 写入 <code>ChangePlan.source_id</code>，重复执行会更新已有记录。</li>
+                <li>页面支持按计划开始日期、发起人、系统名称和 Jenkins 清单筛选，并提供分页。</li>
+                <li>接口凭据可通过 <code>ZERO_CODE_BEARER_TOKEN</code>、<code>ZERO_CODE_COOKIE</code> 等环境变量覆盖。</li>
+            </ul>
         </div>
 
         <div class="doc-section">

@@ -12,7 +12,7 @@
 
     .history-panel {
         width: 100%;
-        max-width: 1080px;
+        max-width: 1320px;
         margin: 0 auto;
         padding: 18px;
         border: 1px solid var(--border);
@@ -153,25 +153,276 @@
 
     .history-table-wrap {
         width: 100%;
-        max-width: 1080px;
+        max-width: 1320px;
         margin: 0 auto;
         border: 1px solid var(--border);
         border-radius: 14px;
         background: var(--bg-panel);
         box-shadow: var(--shadow);
-        overflow: hidden;
+        overflow-x: auto;
+        overflow-y: hidden;
     }
 
     .history-table-wrap table {
+        min-width: 1180px;
         margin: 0;
         border: none;
         border-radius: 0;
         box-shadow: none;
+        table-layout: fixed;
+    }
+
+    .history-table-wrap th,
+    .history-table-wrap td {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .history-table-wrap th:nth-child(1) {
+        width: 30%;
+    }
+
+    .history-table-wrap th:nth-child(2) {
+        width: 9%;
+    }
+
+    .history-table-wrap th:nth-child(3) {
+        width: 10%;
+    }
+
+    .history-table-wrap th:nth-child(4) {
+        width: 12%;
+    }
+
+    .history-table-wrap th:nth-child(5) {
+        width: 20%;
+    }
+
+    .history-table-wrap th:nth-child(6) {
+        width: 19%;
     }
 
     .history-table-wrap .cell-wrap {
         text-align: left;
-        max-width: 360px;
+    }
+
+    .param-summary,
+    .param-row {
+        display: grid;
+        grid-template-columns: minmax(82px, 38%) minmax(0, 1fr);
+        gap: 8px;
+        align-items: center;
+        min-width: 0;
+    }
+
+    .param-key {
+        overflow: hidden;
+        color: var(--muted);
+        font-weight: 600;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .param-value {
+        overflow: hidden;
+        color: var(--text);
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .param-details {
+        min-width: 0;
+    }
+
+    .param-details summary {
+        cursor: pointer;
+        list-style: none;
+    }
+
+    .param-details summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .param-details summary::after {
+        content: "展开";
+        margin-left: 8px;
+        color: var(--brand-strong);
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .param-details[open] summary::after {
+        content: "收起";
+    }
+
+    .param-list {
+        display: grid;
+        gap: 4px;
+        margin-top: 6px;
+        padding-top: 6px;
+        border-top: 1px solid var(--border);
+    }
+
+    .history-table-wrap .cell-wrap {
+        overflow: visible;
+    }
+
+    .history-table-wrap {
+        overflow-y: visible;
+    }
+
+    .param-summary {
+        display: inline-flex;
+        align-items: center;
+        max-width: 100%;
+        min-width: 0;
+        vertical-align: middle;
+    }
+
+    .param-key {
+        max-width: 120px;
+    }
+
+    .param-separator {
+        margin: 0 6px;
+        color: var(--muted);
+    }
+
+    .param-more {
+        flex: 0 0 auto;
+        margin-left: 8px;
+        padding: 1px 6px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: #f8fafc;
+        color: var(--brand-strong);
+        font-size: 11px;
+        font-weight: 700;
+        line-height: 1.4;
+    }
+
+    .param-details {
+        position: relative;
+        display: inline-block;
+        max-width: 100%;
+    }
+
+    .param-details summary {
+        display: inline-flex;
+        max-width: 100%;
+        vertical-align: middle;
+    }
+
+    .param-details summary::after {
+        content: none;
+    }
+
+    .param-list {
+        position: absolute;
+        top: calc(100% + 8px);
+        left: 0;
+        z-index: 20;
+        gap: 6px;
+        width: max-content;
+        min-width: 280px;
+        max-width: 520px;
+        margin-top: 0;
+        padding: 10px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: #fff;
+        box-shadow: 0 14px 34px rgba(15, 23, 42, 0.16);
+        white-space: normal;
+    }
+
+    .param-row {
+        display: grid;
+        grid-template-columns: minmax(90px, 150px) auto minmax(0, 1fr);
+        gap: 8px;
+    }
+
+    .param-row .param-value {
+        white-space: normal;
+        word-break: break-word;
+    }
+
+    .history-table-wrap td:nth-child(5) {
+        overflow: visible;
+        text-align: center;
+    }
+
+    .history-table-wrap td:nth-child(5) .hint {
+        display: inline-block;
+        min-width: 210px;
+        text-align: center;
+    }
+
+    .history-table-wrap td:nth-child(5) .param-empty {
+        min-width: 0;
+        width: 100%;
+    }
+
+    .param-summary {
+        display: inline-grid;
+        grid-template-columns: minmax(72px, 120px) 14px minmax(40px, 120px) 34px;
+        gap: 4px;
+        justify-content: center;
+        width: min(100%, 300px);
+        text-align: left;
+    }
+
+    .param-key {
+        max-width: none;
+        text-align: right;
+    }
+
+    .param-separator {
+        margin: 0;
+        text-align: center;
+    }
+
+    .param-value {
+        text-align: left;
+    }
+
+    .param-more {
+        justify-self: start;
+        margin-left: 4px;
+        font-family: inherit;
+        cursor: pointer;
+    }
+
+    button.param-more {
+        appearance: none;
+    }
+
+    .param-more-placeholder {
+        visibility: hidden;
+    }
+
+    .param-list {
+        position: fixed;
+        z-index: 1000;
+        max-height: min(360px, calc(100vh - 24px));
+        overflow: auto;
+        transform: none;
+        text-align: left;
+    }
+
+    .param-popover {
+        display: none;
+    }
+
+    .param-popover.is-open {
+        display: grid;
+    }
+
+    .param-key,
+    .param-separator,
+    .param-value,
+    .param-more {
+        font-size: inherit;
     }
 
     .history-table-wrap tbody td:first-child {
@@ -258,6 +509,7 @@
                     <label for="per_page" class="refresh-label">每页</label>
                     <select id="per_page" name="per_page" class="input" onchange="this.form.submit()">
                         <option value="10" {% if per_page == 10 %}selected{% endif %}>10</option>
+                        <option value="30" {% if per_page == 30 %}selected{% endif %}>30</option>
                         <option value="50" {% if per_page == 50 %}selected{% endif %}>50</option>
                         <option value="100" {% if per_page == 100 %}selected{% endif %}>100</option>
                     </select>
@@ -295,12 +547,12 @@
                     </div>
                 </div>
                 <div class="history-field wide">
-                    <label for="started_from">开始时间</label>
-                    <input id="started_from" name="started_from" class="input" type="datetime-local" value="{{ filters.started_from }}">
+                    <label for="started_from">开始日期</label>
+                    <input id="started_from" name="started_from" class="input" type="date" value="{{ filters.started_from }}">
                 </div>
                 <div class="history-field wide">
-                    <label for="started_to">结束时间</label>
-                    <input id="started_to" name="started_to" class="input" type="datetime-local" value="{{ filters.started_to }}">
+                    <label for="started_to">结束日期</label>
+                    <input id="started_to" name="started_to" class="input" type="date" value="{{ filters.started_to }}">
                 </div>
                 <div class="history-field">
                     <label for="is_audited">是否审计</label>
@@ -338,12 +590,44 @@
             <tbody>
                 {% for row in rows %}
                 <tr>
-                    <td>{{ row.job_name }}</td>
-                    <td>{{ row.build_number }}</td>
+                    <td title="{{ row.job_name }}">{{ row.job_name }}</td>
+                    <td title="{{ row.build_number }}">{{ row.build_number }}</td>
                     <td><span class="status-pill status-{{ row.status|lower }}">{{ row.status }}</span></td>
-                    <td>{{ row.triggered_by }}</td>
-                    <td class="cell-wrap">{{ row.parameters }}</td>
-                    <td>{{ row.started_at }}</td>
+                    <td title="{{ row.triggered_by }}">{{ row.triggered_by }}</td>
+                    <td class="cell-wrap">
+                        {% if row.parameter_entries %}
+                            {% set first_param = row.parameter_entries[0] %}
+                            {% if row.parameter_entries|length > 1 %}
+                            <span class="param-details">
+                                <span class="param-summary">
+                                        <span class="param-key" title="{{ first_param.key }}">{{ first_param.key }}</span>
+                                        <span class="param-separator">=</span>
+                                        <span class="param-value" title="{{ first_param.value }}">{{ first_param.value }}</span>
+                                    <button class="param-more" type="button" aria-expanded="false">+{{ row.parameter_entries|length - 1 }}</button>
+                                </span>
+                                <div class="param-list param-popover">
+                                    {% for param in row.parameter_entries %}
+                                    <div class="param-row">
+                                        <span class="param-key" title="{{ param.key }}">{{ param.key }}</span>
+                                        <span class="param-separator">=</span>
+                                        <span class="param-value" title="{{ param.value }}">{{ param.value }}</span>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </span>
+                            {% else %}
+                            <span class="param-summary">
+                                <span class="param-key" title="{{ first_param.key }}">{{ first_param.key }}</span>
+                                <span class="param-separator">=</span>
+                                <span class="param-value" title="{{ first_param.value }}">{{ first_param.value }}</span>
+                                <span class="param-more param-more-placeholder">+0</span>
+                            </span>
+                            {% endif %}
+                        {% else %}
+                        <span class="hint param-empty">无参数</span>
+                        {% endif %}
+                    </td>
+                    <td title="{{ row.started_at }}">{{ row.started_at }}</td>
                 </tr>
                 {% endfor %}
                 {% if rows|length == 0 %}
@@ -369,6 +653,67 @@
 </div>
 
 <script>
+    (function () {
+        const buttons = document.querySelectorAll(".param-more:not(.param-more-placeholder)");
+
+        function positionPopover(button, popover) {
+            const buttonRect = button.getBoundingClientRect();
+            popover.style.visibility = "hidden";
+            popover.classList.add("is-open");
+            popover.style.left = "0px";
+            popover.style.top = "0px";
+
+            const popoverRect = popover.getBoundingClientRect();
+            const margin = 12;
+            const left = Math.min(
+                Math.max(buttonRect.left + buttonRect.width / 2 - popoverRect.width / 2, margin),
+                window.innerWidth - popoverRect.width - margin
+            );
+            const belowTop = buttonRect.bottom + 8;
+            const aboveTop = buttonRect.top - popoverRect.height - 8;
+            const top = belowTop + popoverRect.height <= window.innerHeight - margin
+                ? belowTop
+                : Math.max(aboveTop, margin);
+
+            popover.style.left = `${left}px`;
+            popover.style.top = `${top}px`;
+            popover.style.visibility = "";
+        }
+
+        function closeAll(exceptButton) {
+            buttons.forEach((button) => {
+                if (button === exceptButton) return;
+                const wrapper = button.closest(".param-details");
+                const popover = wrapper ? wrapper.querySelector(".param-popover") : null;
+                if (popover) {
+                    popover.classList.remove("is-open");
+                    button.setAttribute("aria-expanded", "false");
+                }
+            });
+        }
+
+        buttons.forEach((button) => {
+            button.addEventListener("click", (event) => {
+                event.stopPropagation();
+                const wrapper = button.closest(".param-details");
+                const popover = wrapper ? wrapper.querySelector(".param-popover") : null;
+                if (!popover) return;
+                const shouldOpen = !popover.classList.contains("is-open");
+                closeAll(button);
+                if (shouldOpen) {
+                    positionPopover(button, popover);
+                } else {
+                    popover.classList.remove("is-open");
+                }
+                button.setAttribute("aria-expanded", String(shouldOpen));
+            });
+        });
+
+        document.addEventListener("click", () => closeAll(null));
+        window.addEventListener("scroll", () => closeAll(null), true);
+        window.addEventListener("resize", () => closeAll(null));
+    })();
+
     (function () {
         const group = document.getElementById("refresh_interval");
         const storageKey = "jenkins_history_refresh_interval";
